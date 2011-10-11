@@ -1,0 +1,11 @@
+Copyright and author information for playtag
+
+Copyright (C) 2011. All rights reserved.
+
+playtag is distributed under the MIT license:
+
+http://www.opensource.org/licenses/mit-license.php
+
+Authors:
+
+- Patrick Maupin
