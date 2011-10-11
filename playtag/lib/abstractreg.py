@@ -2,7 +2,7 @@
 Abstractions that allow easy access to hardware registers.
 
 Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/COPYRIGHT.TXT
+License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
 class HexNum(long):
     def __new__(cls, value, size=32):

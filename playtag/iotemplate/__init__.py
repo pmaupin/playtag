@@ -13,7 +13,7 @@ There are two kinds of IO templates:
    could go in the cable-specific directory.
 
 Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/COPYRIGHT.TXT
+License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
 
 from stringconvert import TdiEntry

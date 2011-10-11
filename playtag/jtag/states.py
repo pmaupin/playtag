@@ -21,7 +21,7 @@ or a boundary condition for the number of bits modulo some number.
 Run this module standalone for a list of state names and sequence values.
 
 Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/COPYRIGHT.TXT
+License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
 
 from collections import defaultdict

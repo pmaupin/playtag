@@ -2,7 +2,7 @@
 This module provides a driver for the Digilent USB-JTAG cable
 
 Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/COPYRIGHT.TXT
+License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
 import sys
 from itertools import izip

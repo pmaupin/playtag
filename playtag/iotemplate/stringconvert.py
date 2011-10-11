@@ -3,7 +3,7 @@ This module contains conversions from strings to integers and back,
 including arrays of integers, for dealing with string-based drivers.
 
 Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/COPYRIGHT.TXT
+License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
 
 class TdiEntry(object):
