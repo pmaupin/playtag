@@ -11,15 +11,25 @@ import os
 root = os.path.dirname(__file__)
 
 def readfile(fname):
+    ''' Strip #-delimited comments, and then split each
+        line into tokens, and yield each line.
+    '''
     f = open(fname, 'rb')
     data = f.read()
     f.close()
     for line in data.splitlines():
         line = line.split('#',1)[0].split()
         if line:
-            yield iter(line)
+            yield line
 
 def expand_x():
+    ''' Take a string that has x's in it, and return
+        multiple strings, replacing each x with both
+        a 0 and a 1.
+
+        Recurse without incurring a globals() lookup
+        on each recursion.
+    '''
     def expand_x(s):
         if 'x' in s:
             a, b = s.rsplit('x', 1)
@@ -29,16 +39,29 @@ def expand_x():
                 yield '1'.join(s)
         else:
             yield s
-    def str_or_num(s):
-        if not isinstance(s, str):
-            value, mask = s
-            value, mask = '{0:032b} {1:032b}'.format(value, mask).split()
-            s = ''.join((x if y == '1' else'x') for (x,y) in zip(value, mask))
-        return expand_x(s)
-    return str_or_num
+    return expand_x
 expand_x = expand_x()
 
+class PartParameters(object):
+    ''' Describes the parameters of an abstract part.
+        More than one part on the chain can share the
+        same PartParameters, so no system-device-specific
+        information should be stored here.
+    '''
+    def __init__(self, idcode='', ir_capture='', name='(unknown part)'):
+        if not isinstance(idcode, str):
+            value, mask = idcode
+            value, mask = '{0:032b} {1:032b}'.format(value, mask).split()
+            idcode = ''.join((x if y == '1' else'x') for (x,y) in zip(value, mask))
+        self.idcode = idcode
+        self.ir_capture = ir_capture
+        self.name = name
+
 class PartInfo(object):
+    ''' Each instantiation of PartInfo represents an actual
+        physical part in a chain, and can be decorated by
+        clients with information they need.
+    '''
     partfile = os.path.join(root, 'data', 'partindex.txt')
     mfgfile = os.path.join(root, 'data', 'manufacturers.txt')
     partcache = {}
@@ -47,32 +70,33 @@ class PartInfo(object):
     _possible_ir = None
 
     @classmethod
-    def addparts(cls, partinfo, int=int, expand_x=expand_x):
+    def addparts(cls, partlist, int=int, expand_x=expand_x):
         partcache = cls.partcache
 
-        for idcode, ir_capture, partname in partinfo:
-            for idcode in expand_x(idcode):
-                partcache[int(idcode, 2)] = ir_capture, partname
+        for part in partlist:
+            for idcode in expand_x(part.idcode):
+                partcache[int(idcode, 2)] = part
 
     @classmethod
     def addmfgs(cls, mfginfo, int=int):
         mfgcache = cls.mfgcache
-        for line in mfginfo:
+        for line in (iter(x) for x in mfginfo):
             index = int(line.next(), 2)
             mfgcache[index] = ' '.join(line)
 
     @classmethod
     def initcaches(cls, int=int):
-        cls.addparts(readfile(cls.partfile))
+        cls.addparts(PartParameters(*x) for x in readfile(cls.partfile))
         cls.addmfgs(readfile(cls.mfgfile))
 
-    def __init__(self, index):
+    def __init__(self, index, unknown=PartParameters()):
         try:
             index = int(index, 2)
         except TypeError:
             pass
         self.idcode = index
-        self.ir_capture, self.name = self.partcache.get(index, ('', '(unknown part)'))
+        self.parameters = parameters = self.partcache.get(index, unknown)
+        self.ir_capture, self.name = parameters.ir_capture, parameters.name
         self.manufacturer = self.mfgcache.get((index >> 1) & ((1 << 11) - 1),
                                                              '(unknown manufacturer)')
 
