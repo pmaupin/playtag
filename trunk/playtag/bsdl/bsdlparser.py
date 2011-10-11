@@ -31,12 +31,11 @@ class TokenRegex(object):
     string = r'\"(?:[^"]|\"\")*\"?'
     multi_operator = r'\*\*|\/\=|\<\=|\>\=|\:\='
     word = r'\w+'
-    whitespace = r'\S'
+    single = r'\S'
 
     comments = vhdl_comment, c_comment, cpp_comment, bad_comment_1, bad_comment_2
-    code = float1, float2, string, multi_operator, word
-    other = whitespace,
-    pattern = '(%s)' % '|'.join(comments + code + other)
+    code = float1, float2, string, multi_operator, word, single
+    pattern = '(%s)' % '|'.join(comments + code)
     splitter = re.compile(pattern).split
 
 def hack_comments(data):
@@ -46,7 +45,7 @@ def hack_comments(data):
     def anycase(what):
         return ''.join('[%s%s]' % (x, x.upper()) for x in what)
 
-    separator = r'(\n(?:%s|%s|%s) )' % (anycase('entity'), anycase('package'), anycase('end'))
+    separator = r'((?:\n|^)\s*(?:%s|%s|%s) )' % (anycase('entity'), anycase('package'), anycase('end'))
     splitter = re.compile(separator).split
     result = splitter(data)
     if len(result) < 2 or len(result) % 4 != 1:
@@ -57,10 +56,13 @@ def hack_comments(data):
     if 'end' in startwords or 'end' not in endwords or len(endwords) > 1:
         return data
     for index in range(0, len(result), 4):
-        result[index] = result[index].count('\n') * '\n'
+        temp = result[index]
+        suffix = temp.count('\n') * '\n'
+        prefix = index and temp and temp.split('\n')[0] or ''
+        result[index] = prefix + suffix
     return ''.join(result)
 
-def tokenize(fname, error_list, hack, splitter=TokenRegex.splitter):
+def tokenize(fname, warnings, hack, splitter=TokenRegex.splitter):
     f = open(fname, 'rb')
     data = f.read()
     f.close()
@@ -76,15 +78,15 @@ def tokenize(fname, error_list, hack, splitter=TokenRegex.splitter):
         nextlinenum += token.count('\n')
         if token.startswith(('--', '/*', '//', '****', '\n__')):
             if not token.startswith('--'):
-                error_list.append((linenum, 'Bad Comment Type'))
+                warnings.append((linenum, 'Bad Comment Type'))
             continue
         elif not token.strip():
             continue
         if token.startswith('"'):
             if len(token) == 1 or not token.endswith('"'):
-                error_list.append((linenum, 'Unterminated quoted string'))
+                warnings.append((linenum, 'Unterminated quoted string'))
             elif token.count('\n'):
-                error_list.append((linenum, 'Quoted string spans %s lines' % (token.count('\n') + 1)))
+                warnings.append((linenum, 'Quoted string spans %s lines' % (token.count('\n') + 1)))
         yield token, linenum
 
 def nestparens(source):
@@ -131,10 +133,10 @@ class FileParser(object):
     def raise_error(self, s, linenum=None):
         if linenum is not None:
             s += ' on line %s' % linenum
-        errors = self.errors
-        if errors:
-            errors = '\n        '.join('Line %s -- %s' % x for x in errors)
-            s = '%s\n     Additional information:\n        %s' % (s, errors)
+        warnings = self.warnings
+        if warnings:
+            warnings = '\n        '.join('Line %s -- %s' % x for x in warnings)
+            s = '%s\n     Additional information:\n        %s' % (s, warnings)
         s = '\nError in parsing BSDL file %s:\n    %s\n' % (self.fname, s)
         raise BSDLError(s)
 
@@ -175,25 +177,25 @@ class FileParser(object):
     def __init__(self, fname):
         try:
             self.run(fname)
-            parsed_ok = not self.errors
+            parsed_ok = not self.warnings
         except KeyboardInterrupt:
             raise
         except:
             print "Retrying", fname
             self.run(fname, True)
-            self.errors.append((1, "Invalid comments before entity"))
+            self.warnings.append((1, "Invalid comments before entity"))
             parsed_ok = False
         for chip in self.chips:
             chip.parsed_ok = parsed_ok
 
     def run(self, fname, hack=False):
         self.fname = fname
-        self.errors = errors = []
+        self.warnings = warnings = []
         self.chips = []
         self.packages = []
         self.chip = None
 
-        tokens = tokenize(fname, errors, hack)
+        tokens = tokenize(fname, warnings, hack)
         tokens = nestparens(tokens)
         tokens = group_semi(tokens)
         if not tokens:
@@ -256,7 +258,7 @@ class FileParser(object):
         self.nexttok(line, linenum, '.')
         self.nexttok(line, linenum, 'all')
         if line:
-            self.errors.append((linenum, "Expected ';' after 'use <package>.all'"))
+            self.warnings.append((linenum, "Expected ';' after 'use <package>.all'"))
 
     def handle_attribute(self, line, chip, linenum):
         name = self.nexttok(line, linenum, errmsg='Expected attribute name')
@@ -274,10 +276,11 @@ class FileParser(object):
             return
         self.nexttok(line, linenum, 'is')
         if parent.lower() != chip.name.lower():
-            self.errors.append((linenum, "Entity name mismatch on attribute"))
+            self.warnings.append((linenum, "Entity name mismatch on attribute"))
         self.combine_strings(line)
         if len(line) != 1:
-            self.raise_error('Expected exactly one value for attribute %s; got %s' % (name, repr(line)))
+            line = ' '.join(str(x[0]) for x in reversed(line))
+            self.raise_error('Expected exactly one value for attribute %s; got %s\n    (Missing &?)' % (name, repr(line)))
         value = line[0][0]
         assert isinstance(value, str)
         setattr(chip, name, value)
@@ -285,11 +288,11 @@ class FileParser(object):
     def handle_end(self, line, chip, linenum):
         self.chip = None
         if not line:
-            self.errors.append((linenum, 'Expected entity name after end'))
+            self.warnings.append((linenum, 'Expected entity name after end'))
             return
         entity = self.nexttok(line, linenum, errmsg='Expected entity name after end')
         if entity.lower() != chip.name.lower():
-            self.errors.append((linenum, "Entity name mismatch on end -- %s and %s" % (entity.lower(), chip.name.lower())))
+            self.warnings.append((linenum, "Entity name mismatch on end -- %s and %s" % (entity.lower(), chip.name.lower())))
         if line:
-            self.errors.append((linenum, "Unexpected text after entity end -- %s" % repr(line[:80])))
+            self.warnings.append((linenum, "Unexpected text after entity end -- %s" % repr(line[:80])))
 
