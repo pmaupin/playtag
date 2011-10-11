@@ -26,7 +26,7 @@ def go(doall=False, debug=True):
     count = 0
     fnames = (filedir + x for x in os.listdir(filedir))
     fnames = sorted(set(fnames)- badfiles)
-    if not doall:
+    if not doall and len(fnames) > 50:
         for i in range(10):
             random.shuffle(fnames)
         fnames = fnames[:50]
@@ -38,7 +38,7 @@ def go(doall=False, debug=True):
         print '  %d\r' % count,
         sys.stdout.flush()
         try:
-            chips += FileParser(fname).chips
+            fdata = FileParser(fname)
         except KeyboardInterrupt:
             raise
         except BSDLError, s:
@@ -55,6 +55,11 @@ def go(doall=False, debug=True):
             print
             if not debug:
                 badfiles.add(fname)
+        else:
+            chips += fdata.chips
+            warnings = '\n        '.join('Line %s -- %s' % x for x in fdata.warnings)
+            if warnings:
+                print '\n%s had warnings:\n    %s\n' % (fname, warnings)
     print
     print
     #attrs = 'instruction_length instruction_capture instruction_opcode bsdl_file_name'.split()
@@ -77,7 +82,7 @@ def go(doall=False, debug=True):
     if update:
         outf.close()
 
-    if badfiles:
+    if update and badfiles:
         f = open('badfiles.txt', 'wb')
         f.write('\n'.join(sorted(badfiles)))
         f.write('\n')
