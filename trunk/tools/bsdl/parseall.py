@@ -11,7 +11,7 @@ import random
 import traceback
 
 sys.path.append('../../')
-from playtag.bsdl.bsdlparser import FileParser, BSDLError
+from playtag.bsdl.parser import FileParser, BSDLError
 
 filedir = 'downloads/'
 
