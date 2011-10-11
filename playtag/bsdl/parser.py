@@ -9,6 +9,9 @@ register values.  Should be fairly easy to extend.
 There are a lot of crap BSDL files out there, and this parser
 attempts to wade through the crap and generate reasonable results
 where possible.
+
+Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
+License information at: http://playtag.googlecode.com/svn/trunk/COPYRIGHT.TXT
 '''
 
 import re
