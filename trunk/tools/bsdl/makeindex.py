@@ -222,6 +222,7 @@ def strip_silly(source):
         ok = idcode[0] == idcode[-1] == '"' and len(idcode) == 34
         idcode = idcode[1:-1].strip()
         ok = ok and idcode[-12:].count('x') == 0
+        ok = ok and idcode[-1] == '1' and len(set(idcode[-8:-1])) == 2
         ok = ok and idcode[4:-12].count('x') < 16
         ilength = part.instruction_length
         ilength = ilength.isdigit() and int(ilength)
@@ -230,6 +231,7 @@ def strip_silly(source):
         ok = ok and icapture[0] == icapture[-1] == '"'
         icapture = icapture[1:-1].strip()
         ok = ok and len(icapture) == ilength
+        ok = ok and icapture[-2:] == '01'
         if ok:
             part.idcode_register = idcode
             part.instruction_capture = icapture
