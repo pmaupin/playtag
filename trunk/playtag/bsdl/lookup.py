@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 '''
 Look up a JTAG ID in the database
+
+Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
+License information at: http://playtag.googlecode.com/svn/trunk/COPYRIGHT.TXT
 '''
 
 import os
@@ -41,6 +44,8 @@ class PartInfo(object):
     partcache = {}
     mfgcache = {}
 
+    _possible_ir = None
+
     @classmethod
     def addparts(cls, partinfo, int=int, expand_x=expand_x):
         partcache = cls.partcache
@@ -66,21 +71,32 @@ class PartInfo(object):
             index = int(index, 2)
         except TypeError:
             pass
-
+        self.idcode = index
         self.ir_capture, self.name = self.partcache.get(index, ('', '(unknown part)'))
         self.manufacturer = self.mfgcache.get((index >> 1) & ((1 << 11) - 1),
                                                              '(unknown manufacturer)')
 
+    @property
     def possible_ir(self, int=int):
+        result = self._possible_ir
+        if result is not None:
+            return result
         ir_capture = self.ir_capture
-        if not ir_capture:
-            return []
-        size = len(ir_capture)
-        return [(size, int(x, 2)) for x in expand_x(ir_capture)]
+        if ir_capture:
+            size = len(ir_capture)
+            result = set((size, int(x, 2)) for x in expand_x(ir_capture))
+        else:
+            result = set()
+        self._possible_ir = result
+        return result
 
     def __str__(self):
-        return '%s %s (ir_capture = %s)' % (self.manufacturer, self.name,
-                                                         repr(self.ir_capture))
+        idcode = self.idcode
+        if idcode:
+            idcode = '{0:032b}'.format(idcode)
+            idcode = '_'.join((idcode[0:4], idcode[4:20], idcode[20:31], idcode[31]))
+        return '%s %s (ir_capture = %s, idcode=%s)' % (self.manufacturer,
+                    self.name, repr(self.ir_capture), repr(idcode))
 
 PartInfo.initcaches()
 
