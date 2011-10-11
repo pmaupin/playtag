@@ -193,7 +193,7 @@ def check_collisions(source):
         if len(stuff) > 1:
             for part in stuff:
                 collisions[part].update(stuff)
-    parts = sorted(collisions, key=lambda x:x.name.lower())
+    parts = sorted(source, key=lambda x:x.name.lower())
     processed = set()
     result = []
     for part in parts:

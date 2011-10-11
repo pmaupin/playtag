@@ -40,7 +40,6 @@ class TokenRegex(object):
 
 def hack_comments(data):
     ''' Get rid of cruft around the packages and entities.
-        Assume left-adjusted keywords
     '''
     def anycase(what):
         return ''.join('[%s%s]' % (x, x.upper()) for x in what)
@@ -48,18 +47,23 @@ def hack_comments(data):
     separator = r'((?:\n|^)\s*(?:%s|%s|%s) )' % (anycase('entity'), anycase('package'), anycase('end'))
     splitter = re.compile(separator).split
     result = splitter(data)
-    if len(result) < 2 or len(result) % 4 != 1:
+    if len(result) < 2:
         return data
-    keywords = result[1::2]
-    startwords = set(x.strip() for x in result[1::4])
-    endwords = set(x.strip() for x in result[3::4])
-    if 'end' in startwords or 'end' not in endwords or len(endwords) > 1:
-        return data
-    for index in range(0, len(result), 4):
-        temp = result[index]
-        suffix = temp.count('\n') * '\n'
-        prefix = index and temp and temp.split('\n')[0] or ''
-        result[index] = prefix + suffix
+    inside = False
+    result[0] = result[0].count('\n') * '\n'
+    for index in range(1, len(result), 2):
+        ending = result[index].strip().lower() == 'end'
+        if not inside:
+            if ending:
+                return data
+            inside = True
+        elif ending:
+            inside = False
+            temp = result[index+1]
+            suffix = temp.count('\n') * '\n'
+            prefix = temp and temp.split('\n')[0] or ''
+            result[index+1] = prefix + suffix
+        index += 2
     return ''.join(result)
 
 def tokenize(fname, warnings, hack, splitter=TokenRegex.splitter):
