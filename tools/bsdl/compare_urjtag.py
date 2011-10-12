@@ -18,8 +18,11 @@ def checkpart(part, mfgcodes):
     possible = [PartInfo(x) for x in possible]
     actual = [x for x in possible if x.ir_capture]
     print actual and actual[0] or possible[0]
+    return bool(actual)
 
 def do_mfg():
+    total = 0
+    matched = 0
     by_mfg = defaultdict(list)
 
     for line in readfile(os.path.join(topdir, 'MANUFACTURERS')):
@@ -40,5 +43,7 @@ def do_mfg():
             continue
 
         for part in parts:
-            checkpart(part, items)
+            matched += checkpart(part, items)
+        total += len(parts)
+    print "Total parts = %s; %s matched, %s missing" % (total, matched, total-matched)
 do_mfg()
