@@ -12,7 +12,7 @@ from ..bsdl.lookup import PartInfo
 
 binnum = '{0:b}'.format
 
-class Discover(object):
+class Chain(list):
     mindev_idcode = 2
     maxdev_idcode = 32
     maxdev_noid = 32
@@ -34,14 +34,14 @@ class Discover(object):
         if len(ilengths) > 1 and len(set(dev_ids)) != len(dev_ids):
             self.stripdups(ilengths)
         icapture = set(self.icapture_values(ir, x) for x in ilengths)
-        self.parts = [PartInfo(x) for x in dev_ids]
+        self[:] = [PartInfo(x) for x in dev_ids]
         self.constrain_parts(icapture)
         if len(icapture) != 1:
             self.diagnose_chain(ir)
             raise SystemExit
         icapture, = icapture
         self.updateparts(icapture)
-        self.parts.reverse()
+        self.reverse()
 
     def repeat_read(self, func, info):
         readset = set(func() for i in range(self.repeat_count))
@@ -141,7 +141,7 @@ class Discover(object):
         return tuple(result)
 
     def constrain_parts(self, captureset):
-        for index, part in enumerate(self.parts):
+        for index, part in enumerate(self):
             if len(captureset) <= 1:
                 break
             possible = part.possible_ir
@@ -154,9 +154,8 @@ class Discover(object):
             captureset -= kill
 
     def updateparts(self, captureinfo):
-        parts = self.parts
-        assert len(parts) == len(captureinfo)
-        for index, (part, capture) in enumerate(reversed(zip(parts, captureinfo))):
+        assert len(self) == len(captureinfo)
+        for index, (part, capture) in enumerate(reversed(zip(self, captureinfo))):
             length, value = capture
             oldstr = part.ir_capture
             part.ir_capture = ('{0:0%db}' % length).format(value)
@@ -168,7 +167,7 @@ class Discover(object):
 
     def __str__(self):
         result = ['', 'JTAG Chain information', '']
-        for i, part in enumerate(self.parts):
+        for i, part in enumerate(self):
             result.append('   #%d - %s' % (i, part))
         result.append('')
         return '\n'.join(result)

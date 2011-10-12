@@ -48,6 +48,8 @@ class PartParameters(object):
         same PartParameters, so no system-device-specific
         information should be stored here.
     '''
+    manufacturer = None  # Can override value from file here
+
     def __init__(self, idcode='', ir_capture='', name='(unknown part)'):
         if not isinstance(idcode, str):
             value, mask = idcode
@@ -56,6 +58,7 @@ class PartParameters(object):
         self.idcode = idcode
         self.ir_capture = ir_capture
         self.name = name
+    base_init = __init__
 
 class PartInfo(object):
     ''' Each instantiation of PartInfo represents an actual
@@ -94,11 +97,15 @@ class PartInfo(object):
             index = int(index, 2)
         except TypeError:
             pass
+        parameters = self.partcache.get(index, unknown)
         self.idcode = index
-        self.parameters = parameters = self.partcache.get(index, unknown)
-        self.ir_capture, self.name = parameters.ir_capture, parameters.name
-        self.manufacturer = self.mfgcache.get((index >> 1) & ((1 << 11) - 1),
-                                                             '(unknown manufacturer)')
+        self.parameters = parameters
+        self.name = parameters.name
+        self.ir_capture = parameters.ir_capture
+        self.manufacturer = parameters.manufacturer
+        if self.manufacturer is None:
+            mfgid = (index >> 1) & ((1 << 11) - 1)
+            self.manufacturer = self.mfgcache.get(mfgid, '(unknown manufacturer)')
 
     @property
     def possible_ir(self, int=int):
