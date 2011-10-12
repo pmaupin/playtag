@@ -1,0 +1,67 @@
+= Playtag Debugging Utilities =
+
+Version 0.1
+
+Copyright (c) 2011 Patrick Maupin
+
+= Introduction =
+
+These scripts are designed to allow easy playing with JTAG and with the LEON3 core through JTAG.  The initial version is quite limited:
+
+  * Supports digilent USB JTAG cable (DCabUsb)
+  * Allows chain discovery and acts as a GDB server for a Leon SPARC clone:
+    * Basic single-threaded debugging supported
+    * Leon must be only device on chain
+    * RAM dumps shadowed by registers (stack) will not see register contents
+    * AHB Plug&Play not supported -- user must describe configuration
+
+
+ Future plans call for several enhancements:
+
+  * Multiple devices on JTAG chain
+  * Multiple Leon cores on chain, each connected to different GDB instance
+  * FTDI chip based JTAG cables
+
+
+= Installation =
+
+There is currently no automated installer.
+
+playtag requires the following components:
+
+  * A Digilent JTAG-USB cable (DCabUsb)
+  * The Digilent Adept system installed
+  * Python 2.6 or 2.7 installed
+  * The playtag code from subversion:
+{{{
+svn co http://playtag.googlecode.com/svn/trunk playtag
+}}}
+
+
+
+= Chain discovery =
+
+A simple test to see if everything is working is to discover the JTAG chain:
+
+{{{
+$ cd playtag/tools/jtag
+$ ./discover.py
+}}}
+
+= GDB debugging =
+
+leonserver.py is a server that understands the GDB remote protocol.  Use it in conjunction with a version of GDB that has been compiled with SPARC support, such as the version that comes with Gaisler's BCC:
+
+  * cd to the playtag/tools/leon3 directory
+  * Create a jtagid.txt file based on example_id.txt with your information
+  * Copy examplegdb.cfg to leongdb.cfg and edit it for your configuration
+  * Connect the Digilent JTAG-USB cable to the target
+  * Run leonserver.py in its own separate window.  It should find the target.
+  * Run GDB and then source the connect script from the leon3 directory:
+{{{
+$ gdb <my exe file>
+(gdb) source playtag/tools/leon3/connect
+}}}
+
+
+
