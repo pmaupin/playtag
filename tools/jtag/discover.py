@@ -7,6 +7,6 @@ import sys
 sys.path.append('../..')
 
 from playtag.cables.digilent import Jtagger
-from playtag.jtag.discover import Discover
+from playtag.jtag.discover import Chain
 
-print Discover(Jtagger())
+print Chain(Jtagger())
