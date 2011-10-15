@@ -11,7 +11,7 @@ def tdi_processor(tdiinfo, total_bits, isinstance=isinstance, str=str, len=len):
     strings = []
     for numbits, value in tdiinfo:
         if value is None:
-            value = ('{%d:0%db}' % (index, numbits))
+            value = ('{0[%d]:0%db}' % (index, numbits))
             index += 1
         else:
             if not isinstance(value, str):
@@ -27,7 +27,7 @@ def tdi_processor(tdiinfo, total_bits, isinstance=isinstance, str=str, len=len):
     def tditostr(tdi):
         if len(tdi) != index:
             raise ValueError("Expected %d TDI elements; got %d" % (index, len(tdi)))
-        tdistr = format(*tdi)
+        tdistr = format(tdi)
         assert len(tdistr) == total_bits, (total_bits, len(tdistr))
         return tdistr
     return tditostr
