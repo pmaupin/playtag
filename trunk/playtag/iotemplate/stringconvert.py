@@ -6,91 +6,46 @@ Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
 License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
 
-class TdiEntry(object):
-    ''' A TdiEntry object can be called to return a
-        binary string representation of an integer of
-        a given length.
-        When you call the string, pass it the next()
-        function of an iterator.
-        It will either pull its value from there, or
-        will not pull a value from there and will
-        return a representation of a fixed value.
-        We cache these objects since they are amenable
-        to reuse.
-    '''
-    def __new__(cls, numbits, value, cache={}):
-        key = numbits, value
-        self = cache.get(key)
-        if self is None:
-            self = object.__new__(cls)
-            self.numbits = numbits
-            self.convert = ('{0:0%sb}' % numbits).format
-            cache[key] = self
-        return self
-    def __call__(self, next_value, len=len):
-        result = self.convert(next_value())
-        if len(result) != self.numbits:
-            raise ValueError("TDI value too large for number of bits")
-        return result
-    def test(self, s):
-        return self.numbits * s
-
-
-class CallableStr(str):
-    ''' The purpose of this class is to provide placeholder objects
-        that have the same signature as variable TdiEntry objects.
-    '''
-    def __new__(cls, numbits, value, cache={}):
-        key = numbits, value
-        self = cache.get(key)
-        if self is None:
-            value = ('{0:0%sb}' % numbits).format(value)
-            self = str.__new__(cls, value)
-            assert len(self) == numbits
-            cache[key] = self
-        return self
-    def __call__(self, *whatever):
-        return self
-    def test(self, s):
-        return self
-
-def make_tdi_template(tdiinfo):
-    prevbits = prevvalue = 0
+def tdi_processor(tdiinfo, total_bits, isinstance=isinstance, str=str, len=len):
+    index = 0
+    strings = []
     for numbits, value in tdiinfo:
         if value is None:
-            if prevbits:
-                yield CallableStr(prevbits, prevvalue)
-                prevbits = prevvalue = 0
-            yield TdiEntry(numbits, value)
+            value = ('{%d:0%db}' % (index, numbits))
+            index += 1
         else:
-            if isinstance(value, str):
-                value = int(value, 2)
-            elif value < 0:
-                assert value == -1, value
-                value = (1 << numbits) - 1
-            prevvalue += value << prevbits
-            prevbits += numbits
-    if prevbits:
-        yield CallableStr(prevbits, prevvalue)
+            if not isinstance(value, str):
+                if value < 0:
+                    assert value == -1, value
+                    value = (1 << numbits) - 1
+                value = '{0:0{1}b}'.format(value, numbits)
+            assert len(value) == numbits, (value, numbits)
+        strings.append(value)
+    strings.reverse()
+    format = ''.join(strings).format
 
-def tditostr(tdi, numbits, tdi_template, len=len, reversed=reversed):
-    itertdi = reversed(tdi)
-    nexttdi = itertdi.next
-    tdistr = ''.join(x(nexttdi) for x in reversed(tdi_template))
-    for x in itertdi:
-        raise ValueError("Not all TDI values consumed")
-    assert len(tdistr) == numbits, (numbits, len(tdistr))
-    return tdistr
+    def tditostr(tdi):
+        if len(tdi) != index:
+            raise ValueError("Expected %d TDI elements; got %d" % (index, len(tdi)))
+        tdistr = format(*tdi)
+        assert len(tdistr) == total_bits, (total_bits, len(tdistr))
+        return tdistr
+    return tditostr
 
-def make_tdo_template(tdoinfo, numbits, slice=slice):
+def tdo_processor(tdoinfo, numbits, slice=slice, len=len, int=int):
+    if not tdoinfo:
+        return None
+    template = []
+    append = template.append
     strloc = numbits
     for offset, slicelen in tdoinfo:
         strloc -= offset
-        yield slice(strloc-slicelen,strloc)
+        append(slice(strloc-slicelen,strloc))
 
-def tdofromstr(tdostr, numbits, tdo_template, len=len, int=int):
-    assert len(tdostr) == numbits, (numbits, len(tdostr))
-    return [int(tdostr[x], 2) for x in tdo_template]
+    def tdofromstr(tdostr):
+        assert len(tdostr) == numbits, (numbits, len(tdostr))
+        return [int(tdostr[x], 2) for x in template]
+    return tdofromstr
 
 class StringXferMixin(object):
     ''' A cable driver helper that can convert cable-independent
@@ -106,14 +61,13 @@ class StringXferMixin(object):
     @staticmethod
     def make_template(base_template, str=str):
         tms_template = ''.join(str(x) for x in reversed(base_template.tms))
-        numbits = len(tms_template)
-        tdi_template = list(make_tdi_template(base_template.tdi))
-        tdo_template = list(make_tdo_template(base_template.tdo, numbits))
-        return numbits, tms_template, tdi_template, tdo_template
+        tditostr = tdi_processor(base_template.tdi, len(tms_template))
+        tdofromstr = tdo_processor(base_template.tdo, len(tms_template))
+        return tms_template, tditostr, tdofromstr
 
-    def apply_template(self, template, tdi_array, len=len, tditostr=tditostr, tdofromstr=tdofromstr):
-        numbits, tms_template, tdi_template, tdo_template = template
-        tdistr = tditostr(tdi_array, numbits, tdi_template)
-        tdostr = self(tms_template, tdistr, tdo_template)
-        if tdo_template:
-            return tdofromstr(tdostr, numbits, tdo_template)
+    def apply_template(self, template, tdi_array):
+        tms_template, tditostr, tdofromstr = template
+        tdistr = tditostr(tdi_array)
+        tdostr = self(tms_template, tdistr, tdofromstr)
+        if tdofromstr:
+            return tdofromstr(tdostr)
