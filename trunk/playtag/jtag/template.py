@@ -66,7 +66,6 @@ class JtagTemplate(iotemplate.IOTemplate):
         self.devtemplate = None
         tmslist = self.tms
         tmslen = len(tmslist)
-        tdilist = self.tdi
         states = self.states
         oldstate = states[-1]
         if isinstance(state, str) and state.isdigit() and tdi is None:
@@ -88,11 +87,7 @@ class JtagTemplate(iotemplate.IOTemplate):
             if tdi is None:
                 tdi = 0
             assert not read
-        tdi = iotemplate.TdiEntry(numbits, tdi)
-        if isinstance(tdi, str) and tdilist and isinstance(tdilist[-1], str):
-            tdilist[-1] = tdi + tdilist[-1]
-        else:
-            tdilist.append(tdi)
+        self.tdi.append((numbits, tdi))
         if read:
             self.tdo.append((tmslen - self.prevread, numbits))
             self.prevread = tmslen
