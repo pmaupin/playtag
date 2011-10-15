@@ -82,16 +82,15 @@ def tditostr(tdi, numbits, tdi_template, len=len, reversed=reversed):
     assert len(tdistr) == numbits, (numbits, len(tdistr))
     return tdistr
 
+def make_tdo_template(tdoinfo, numbits, slice=slice):
+    strloc = numbits
+    for offset, slicelen in tdoinfo:
+        strloc -= offset
+        yield slice(strloc-slicelen,strloc)
+
 def tdofromstr(tdostr, numbits, tdo_template, len=len, int=int):
     assert len(tdostr) == numbits, (numbits, len(tdostr))
-    tdo = []
-    append = tdo.append
-    strloc = numbits
-    for offset, slicelen in tdo_template:
-        strloc -= offset
-        append(int(tdostr[strloc-slicelen:strloc], 2))
-    return tdo
-
+    return [int(tdostr[x], 2) for x in tdo_template]
 
 class StringXferMixin(object):
     ''' A cable driver helper that can convert cable-independent
@@ -107,9 +106,10 @@ class StringXferMixin(object):
     @staticmethod
     def make_template(base_template, str=str):
         tms_template = ''.join(str(x) for x in reversed(base_template.tms))
+        numbits = len(tms_template)
         tdi_template = list(make_tdi_template(base_template.tdi))
-        tdo_template = base_template.tdo
-        return len(tms_template), tms_template, tdi_template, tdo_template
+        tdo_template = list(make_tdo_template(base_template.tdo, numbits))
+        return numbits, tms_template, tdi_template, tdo_template
 
     def apply_template(self, template, tdi_array, len=len, tditostr=tditostr, tdofromstr=tdofromstr):
         numbits, tms_template, tdi_template, tdo_template = template
