@@ -96,7 +96,6 @@ class TemplateStrings(object):
         first_string = strings[0]
         const_str = strings[2::2]
         bitlens = (len(x) for x in itertools.islice(strings, 1, None, 2))
-        del strings
         nextindex = 0
         slices = []
         for x in bitlens:
@@ -104,6 +103,7 @@ class TemplateStrings(object):
             nextindex = index + x
             slices.append(slice(index, nextindex))
         assert len(slices) == len(const_str)
+        del strings, bitlens
 
         tdi_converter = self.tdi_converter
         izip = itertools.izip
@@ -222,6 +222,7 @@ class TemplateStrings(object):
         tms_template = self.tms_string
         tditostr = self.tdi_combiner
         tdofromstr = self.tdo_extractor
+        vars(self).clear()
 
         def func(driver, tdi_array):
             tdostr = driver(tms_template, tditostr(tdi_array), tdofromstr)
