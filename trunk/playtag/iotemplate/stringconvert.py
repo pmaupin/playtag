@@ -28,7 +28,7 @@ class TemplateStrings(object):
                - '*' denotes "don't care" information
                - The only valid characters in the tms string are '0' and '1'
                - The only valid characters in the tdi string are '0', '1', '*', and 'x'
-               - The only valid characters in the tdo string are '0' and 'x'.
+               - The only valid characters in the tdo string are '*' and 'x'.
           2) Then, a device-specific customize_template method is called.  For
              the digilent cable, this does nothing.  For the FTDI cables, this
              will insert commands into the tdi string, and massage the tdo string
@@ -121,7 +121,7 @@ class TemplateStrings(object):
         self.tdi_combiner = tdi_combiner
 
     def set_tdo_xstring(self, tdo_template):
-        ''' Sets '0' for bit positions where we do not require input,
+        ''' Sets '*' for bit positions where we do not require input,
             or 'x' for those positions requiring input.  This string
             might later be modified by driver-specific code before
             being used.
@@ -129,7 +129,7 @@ class TemplateStrings(object):
         self.tdo_bits = [x[1] for x in tdo_template]
         self.tdo_bits.reverse()
         if not tdo_template:
-            self.tdo_xstring = self.transaction_bit_length * '0'
+            self.tdo_xstring = self.transaction_bit_length * '*'
             return
         strings = []
         strloc = 0
@@ -138,11 +138,11 @@ class TemplateStrings(object):
         for offset, slicelen in tdo_template:
             offset -= prevlen
             assert offset >= 0
-            strings.append('0' * offset)
+            strings.append('*' * offset)
             strings.append('x' * slicelen)
             prevlen = slicelen
             total += offset + slicelen
-        strings.append('0' * (self.transaction_bit_length - total))
+        strings.append('*' * (self.transaction_bit_length - total))
         strings.reverse()
         self.tdo_xstring = ''.join(strings)
         assert len(self.tdo_xstring) == self.transaction_bit_length
