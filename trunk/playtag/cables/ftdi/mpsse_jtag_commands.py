@@ -15,12 +15,17 @@ debug = True
 
 if debug:
     def printbytes(s):
+        column = 0
         for x in (s[i:i+8] for i in range(0, len(s), 8)):
             try:
                 x = hex(int(x, 2))
             except:
                 pass
             print x,
+            column += len(x) + 1
+            if column > 120:
+                print '...'
+                column = 0
         print
 
 def group_strings(tms, tdi, tdo, slice=slice, len=len):
@@ -94,7 +99,7 @@ def group_strings(tms, tdi, tdo, slice=slice, len=len):
     slices = (slice(x, y) for (x, y) in itertools.izip(startx, stopx))
     return [(tms[x], tdi[x], tdo[x]) for x in slices]
 
-def do_tdi_tdo(info, addwrite, addread):
+def do_tdi_tdo(info, addwrite, addread, old_tdi):
     tms, tdi, tdo = info.pop()
     length = len(tdi)
     assert tms.count('0') == length == len(tdo)
@@ -106,7 +111,7 @@ def do_tdi_tdo(info, addwrite, addread):
         addread(tdo[bits:])
         addread(leftovers)
         addread(tdo[:bits])
-        if tdi.count('0') == len(tdi):
+        if old_tdi == '0' and tdi.count('0') == len(tdi):
             instructions = Commands.tdo_rd, Commands.tdo_rd_bits
             tdi = leftovers = ''
         else:
@@ -125,39 +130,42 @@ def do_tdi_tdo(info, addwrite, addread):
         addwrite(hexconv(bits-1))
         addwrite(tdi[:bits])
         addwrite(leftovers)
-    return '0'   # TMS
+    return '0', tdi and tdi[0] or '0'   # TMS
 
-def do_tms(info, addwrite, addread):
-    maxbits = 7
+def do_tms(info, addwrite, addread, old_tdi):
+    maxbits = room = 7
     tms, tdi, tdo = [], [], []
     tdival = info[-1][1][-1]
-    room = maxbits if tdival != 'x' else 1
-    #print
     while info and room:
-        #print info[-1]
         new_tms, new_tdi, new_tdo = info[-1]
-        mylen = min(room, len(new_tdi))
-        #print room, len(new_tdi), mylen,
-        mylen -= len(new_tdi[-mylen:].rstrip(tdival))
-        #print mylen
+        if new_tms[-1] == '0' and len(new_tms) >= 16:
+            break
+        mylen = min(room, len(new_tms))
+        bad_tdi = new_tdi[-mylen:].upper()  # Force mismatch on 'X'
+        if not tdi and bad_tdi.endswith('X'):
+            bad_tdi = bad_tdi[:-1]
+        while 1:
+            bad_tdi = bad_tdi.rstrip(tdival+'*')
+            if not bad_tdi or tdival != '*':
+                break
+            tdival = bad_tdi[-1]
+        mylen -= len(bad_tdi)
         if not mylen:
             break
         info.pop()
         room -= mylen
-        #print room, len(new_tdi)
         if mylen < len(new_tdi):
-            #print '-----', mylen
             room = 0
             info.append((new_tms[:-mylen], new_tdi[:-mylen], new_tdo[:-mylen]))
             new_tms, new_tdi, new_tdo = new_tms[-mylen:], new_tdi[-mylen:], new_tdo[-mylen:]
         tms.append(new_tms); tdi.append(new_tdi); tdo.append(new_tdo)
 
+    tdival = tdival.replace('*', '0')
     tms.reverse()
     tdi.reverse()
     tdo.reverse()
     tms = ''.join(tms)
-    #print 'tms=', tms
-    tdi, = set(''.join(tdi))  # Check it doesn't change
+    tdi, = set(''.join(tdi).replace('*', tdival))  # Check it doesn't change
     tdo = ''.join(tdo)
     length = len(tms)
     assert 1 <= length <= maxbits
@@ -173,17 +181,27 @@ def do_tms(info, addwrite, addread):
     addwrite(tms)
     addwrite((7 - length) * '0')
     addwrite(tdi)
-    return tms[0]
+    return tms[0], tdi
 
-def mpsse_jtag_commands(tms, tdi, tdo):
+def mpsse_jtag_commands(tms, tdi, tdo, do_tms=do_tms, do_tdi_tdo=do_tdi_tdo):
+        def get_func():
+            new_tms, new_tdi, new_tdo = info[-1]
+            if new_tms[-1] == old_tms == '0':
+                if len(new_tms) >= 7:
+                    return do_tdi_tdo
+                if len(set(new_tdi.replace('*', ''))) > 1:
+                    return do_tdi_tdo
+                if new_tdi.count('x') > 1:
+                    return do_tdi_tdo
+            return do_tms
+
         info = group_strings(tms, tdi, tdo)
         write_template, read_template = [], []
         addwrite, addread = write_template.append, read_template.append
-        funcs = do_tms, do_tdi_tdo
         old_tms = '0'
+        old_tdi = '*'
         while info:
-            new_tms = info[-1][0][0]
-            old_tms = funcs[new_tms == old_tms == '0'](info, addwrite, addread)
+            old_tms, old_tdi = get_func()(info, addwrite, addread, old_tdi)
 
         write_template.reverse()
         read_template.reverse()
