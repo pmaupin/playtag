@@ -85,7 +85,7 @@ class JtagTemplate(iotemplate.IOTemplate):
             tmslist.extend(newtms)
             numbits = len(newtms)
             if tdi is None:
-                tdi = 0
+                tdi = numbits * '*'
             assert not read
         self.tdi.append((numbits, tdi))
         if read:

@@ -25,8 +25,9 @@ class TemplateStrings(object):
         information into device-specific data.  This progresses in stages:
           1) First, long strings are generated for tms, tdi, and tdo.
                - 'x' denotes variable information
+               - '*' denotes "don't care" information
                - The only valid characters in the tms string are '0' and '1'
-               - The only valid characters in the tdi string are '0', '1', and 'x'
+               - The only valid characters in the tdi string are '0', '1', '*', and 'x'
                - The only valid characters in the tdo string are '0' and 'x'.
           2) Then, a device-specific customize_template method is called.  For
              the digilent cable, this does nothing.  For the FTDI cables, this
@@ -216,7 +217,7 @@ class TemplateStrings(object):
             self.set_tdo_extractor()
 
     def customize_template(self):
-        pass
+        self.tdi_xstring = self.tdi_xstring.replace('*', '0')
 
     def get_xfer_func(self):
         tms_template = self.tms_string
