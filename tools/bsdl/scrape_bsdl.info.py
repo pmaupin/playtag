@@ -13,7 +13,7 @@ existing = os.listdir('.')
 existing = [x.split('=')[-1] for x in existing]
 existing = [int(x) for x in existing if x.isdigit]
 
-filenums = list(set(range(1,7053)) - set(existing))
+filenums = list(set(range(1,7128)) - set(existing))
 
 for i in range(100):
     random.shuffle(filenums)
