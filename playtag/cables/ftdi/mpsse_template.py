@@ -5,18 +5,8 @@ FTDI MPSSE commands.
 Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
 License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
-import re
-
 from .mpsse_jtag_commands import mpsse_jtag_commands
-from ...iotemplates.stringconvert import TemplateStrings, StringXferMixin
-
-'''
-This module contains template handling code for the FTDI
-MPSSE.
-
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
-'''
+from ...iotemplate.stringconvert import TemplateStrings, StringXferMixin
 
 class MpsseTemplate(TemplateStrings):
 
@@ -28,10 +18,11 @@ class MpsseTemplate(TemplateStrings):
     def get_xfer_func(self):
         tditostr = self.tdi_combiner
         tdofromstr = self.tdo_extractor
+        tdo_length = len(self.tdo_xstring)
         vars(self).clear()
 
         def func(driver, tdi_array):
-            tdostr = driver(tditostr(tdi_array), tdofromstr)
-            if tdofromstr:
+            tdostr = driver(tditostr(tdi_array), tdo_length)
+            if tdo_length:
                 return tdofromstr(tdostr)
         return func

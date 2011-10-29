@@ -67,6 +67,8 @@ class IOTemplate(object):
         self = self.copy()
         tms, tdi, tdo = self.tms, self.tdi, self.tdo
         otms, otdi, otdo = other.tms, other.tdi, other.tdo
+        if not otms:
+            return self
         if tdi and otdi and isinstance(tdi[-1], str) and isinstance(otdi[0], str):
             tdi[-1] = otdi[0] + tdi[-1]
             otdi = otdi[1:]

@@ -24,6 +24,7 @@ def do_mfg():
     total = 0
     matched = 0
     by_mfg = defaultdict(list)
+    unmatched = []
 
     for line in readfile(os.path.join(topdir, 'MANUFACTURERS')):
         index, name = list(line)[:2]
@@ -37,13 +38,19 @@ def do_mfg():
         if not os.path.exists(partfile):
             print "No parts"
             continue
-        parts = list(list(x)[0] for x in readfile(partfile))
+        parts = (list(x) for x in readfile(partfile))
+        parts = list((x[0], ' '.join(x[2:])) for x in parts)
         if not parts:
             print "No parts (2)"
             continue
 
-        for part in parts:
-            matched += checkpart(part, items)
+        for partnum, partname in parts:
+            found = checkpart(partnum, items)
+            matched += found
+            if not found:
+                unmatched.append('    %s %s %s' % (name, partname, partnum))
         total += len(parts)
     print "Total parts = %s; %s matched, %s missing" % (total, matched, total-matched)
+    for stuff in unmatched:
+        print stuff
 do_mfg()

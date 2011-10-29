@@ -7,6 +7,7 @@ License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 import sys
 from itertools import izip
 from ctypes import c_ubyte, c_char, c_uint32, c_int, c_ulonglong, POINTER, c_char_p, CDLL, byref, cast, Structure
+import atexit
 
 from ...iotemplate.stringconvert import StringXferMixin
 
@@ -82,22 +83,20 @@ def DevName(index):
 
 def showdevs():
     numdevs = NumDevices()
-    print
-    print "%d devices found" % numdevs
+    print "\n%d devices found:\n" % numdevs
     for index in range(numdevs):
-        print DevName(index)
+        print '    ', DevName(index)
     print
 
 class Jtagger(HIF, StringXferMixin):
-    def __init__(self, devname=None, maxbits=2**22):
-        if devname is None:
-            devname='DCabUsb'
-            for index in range(NumDevices()):
-                if DevName(index) == devname:
-                    break
-            else:
-                print "Could not find USB cable; defaulting to Parallel port (name=JTAG3)"
-                devname = 'JTAG3'
+    isopen = False
+    isenabled = False
+    def __init__(self, UserConfig, maxbits=2**22):
+        devname = UserConfig.CABLE_NAME = UserConfig.CABLE_NAME or 'DCabUsb'
+        try:
+            devname + ''
+        except TypeError:
+            UserConfig.error("Expected string for CABLE_NAME, not %s" % repr(devname))
         size = (maxbits + 63) / 64
         source = (size * 2 * c_ulonglong)()  # Both TMS and TDI go here
         dest = (size * c_ulonglong)()
@@ -113,11 +112,18 @@ class Jtagger(HIF, StringXferMixin):
         self.closer = DmgrClose
         self.disabler = DjtgDisable
         check(DmgrOpen, byref(self), devname)
+        self.isopen = True
+        atexit.register(self.__del__)
         check(DjtgEnable, self)
+        self.isenabled = True
 
-    def __del__(self):
-        check(self.disabler, self)
-        check(self.closer, self)
+    def __del__(self, check=check):
+        if self.isopen:
+            self.isopen = False
+            if self.isenabled:
+                self.isenabled = False
+                check(self.disabler, self)
+            check(self.closer, self)
 
     def getspeed(self):
         myint = DWORD()

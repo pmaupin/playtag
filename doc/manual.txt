@@ -1,3 +1,5 @@
+.. restructured text file
+
 ================================================
 Playtag Debugging Utilities
 ================================================
@@ -6,7 +8,7 @@ Playtag Debugging Utilities
 
     ###Page###
 
-Version 0.1
+Version 0.2
 
 Copyright (c) 2011 Patrick Maupin
 
@@ -18,7 +20,7 @@ Introduction
 These scripts are designed to allow easy playing with JTAG and with the LEON3 core
 through JTAG.  The initial version is quite limited:
 
-  - Supports digilent USB JTAG cable (DCabUsb)
+  - Supports digilent USB JTAG cable (DCabUsb) and FTDI MPSSE cables.
   - Allows chain discovery and acts as a GDB server for a Leon SPARC clone:
 
       - Basic single-threaded debugging supported
@@ -32,7 +34,7 @@ Future plans call for several enhancements:
 
   - Multiple devices on JTAG chain
   - Multiple Leon cores on chain, each connected to different GDB instance
-  - FTDI chip based JTAG cables
+  - Maybe more cables
 
 Installation
 =================
@@ -41,8 +43,8 @@ There is currently no automated installer.
 
 playtag requires the following components:
 
-  - A Digilent JTAG-USB cable (DCabUsb)
-  - The Digilent Adept system installed
+  - A Digilent JTAG-USB cable (DCabUsb) or FTDI w/MPSSE based cable.
+  - The Digilent Adept system or FTDI D2XX drivers installed
   - Python 2.6 or 2.7 installed
   - The playtag code from subversion::
 
@@ -56,6 +58,24 @@ A simple test to see if everything is working is to discover the JTAG chain::
     $ cd playtag/tools/jtag
     $ ./discover.py
 
+will show the available cable types.  Then, e.g.::
+
+    $ ./discover.py ftdi
+
+will show available FTDI cables, and::
+
+    $ ./discover.py ftdi 1
+
+will show the chain based on that particular cable index.  You can also select
+a cable by serial number or description.
+
+You can also enter options on the command line.  For example, if you are using
+an FTDI-based cable, you can set the frequency, which currently defaults to
+15 MHz, and you want to slow it down to 500KHz, you can use::
+
+    $ ./discover.py ftdi 1 FTDI_JTAG_FREQ=500000
+
+
 GDB debugging
 ===============
 
@@ -67,10 +87,9 @@ as the version that comes with Gaisler's BCC:
   - cd to the playtag/tools/leon3 directory
   - Create a jtagid.txt file based on example_id.txt with your information
   - Copy examplegdb.cfg to leongdb.cfg and edit it for your configuration
-  - Connect the Digilent JTAG-USB cable to the target
+  - Connect the JTAG cable to the target
   - Run leonserver.py in its own separate window.  It should find the target.
   - Run GDB and then source the connect script from the leon3 directory::
 
        $ gdb <my exe file>
        (gdb) source playtag/tools/leon3/connect
-
