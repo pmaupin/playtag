@@ -20,13 +20,10 @@ class CmdProcessor(CmdGdb):
 
     PSR_INIT = 0x00c0
 
-    def writememstring(self, addr, data, hex2int=hex2int):
+    def writememstring(self, addr, data):
         ''' Write a string to an address.
         '''
-        addr = self.remap_addr(addr)
-        if (addr | (len(data)/2)) & 3:
-            return self.ahb_writebyte(addr, hex2int(data, 2))
-        return self.ahb_write(addr, hex2int(data, 8))
+        return self.ahb_writestring(self.remap_addr(addr), data)
 
     def writemembytes(self, addr, data):
         ''' Write binary bytes to address
@@ -34,11 +31,8 @@ class CmdProcessor(CmdGdb):
         addr = self.remap_addr(addr)
         return self.ahb_writebyte(addr, data)
 
-    def readmemstring(self, addr, length, int2hex=int2hex):
-        addr = self.remap_addr(addr)
-        if (addr | length) & 3:
-            return int2hex(self.ahb_readbyte(addr, length), 2)
-        return int2hex(self.ahb_read(addr, length/4), 8)
+    def readmemstring(self, addr, length):
+        return self.ahb_readstring(self.remap_addr(addr), length)
 
     def reglocs(self):
         # TODO: MAP REGISTERS TO STACK MEMORY
@@ -170,6 +164,8 @@ class CmdProcessor(CmdGdb):
         self.ahb_write = ahb.write
         self.ahb_readbyte = ahb.readbyte
         self.ahb_writebyte = ahb.writebyte
+        self.ahb_writestring = ahb.writestring
+        self.ahb_readstring = ahb.readstring
         self.psr = psr = dsu.PSR
         self.load_dsuctl = dsu.Control.load
         self.load_dsubrk = dsu.Break.load

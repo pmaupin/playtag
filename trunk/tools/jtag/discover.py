@@ -6,9 +6,41 @@ Simplistic chain discovery
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+root = os.path.join(os.path.dirname(__file__), '../..')
+sys.path.insert(0, root)
 
-from playtag.cables.digilent import Jtagger
+from playtag.lib.userconfig import UserConfig
 from playtag.jtag.discover import Chain
 
-print Chain(Jtagger())
+config = UserConfig()
+config.readargs(parseargs=True)
+
+def showtypes():
+    cables = os.listdir(os.path.join(root, 'playtag/cables/'))
+    cables = (x for x in cables if not x.startswith(('_', '.')))
+    raise SystemExit('''
+
+usage: %s <cabletype> [<cablename>] [<option>=<value>]
+
+Valid cabletypes are the subpackages under playtag/cables:
+    %s
+
+Valid cablenames and options vary by cabletype --
+    type '%s <cabletype>' for a list.
+''' % (__file__, ', '.join(sorted(cables)), __file__))
+
+if config.CABLE_DRIVER is None:
+    showtypes()
+
+cablemodule = config.getcable()
+
+if config.CABLE_NAME is None:
+    cablemodule.showdevs()
+    raise SystemExit
+
+driver = cablemodule.Jtagger(config)
+
+if config.SHOW_CONFIG:
+    print config.dump()
+
+print Chain(driver)

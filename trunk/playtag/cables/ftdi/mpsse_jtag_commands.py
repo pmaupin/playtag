@@ -33,7 +33,7 @@ def group_strings(tms, tdi, tdo, slice=slice, len=len):
     '''
     def key(stuff):
         tms, tdi, tdo = stuff
-        if tms != '0':
+        if tms != '0' or tdi == tdo == '*':
             return 'tms' + tdi
         elif tdi == 'x' or tdo == 'x':
             return 'data'
@@ -138,7 +138,7 @@ def do_tms(info, addwrite, addread, old_tdi):
     tdival = info[-1][1][-1]
     while info and room:
         new_tms, new_tdi, new_tdo = info[-1]
-        if new_tms[-1] == '0' and len(new_tms) >= 16:
+        if new_tms[-1] == '0' and (new_tdi[-1] != '*' or len(new_tdi) >= 16):
             break
         mylen = min(room, len(new_tms))
         bad_tdi = new_tdi[-mylen:].upper()  # Force mismatch on 'X'
@@ -205,20 +205,4 @@ def mpsse_jtag_commands(tms, tdi, tdo, do_tms=do_tms, do_tdi_tdo=do_tdi_tdo):
 
         write_template.reverse()
         read_template.reverse()
-
-        if debug:
-            new_tdi = ''.join(write_template)
-            new_tdo = ''.join(read_template)
-
-            print
-            print '*****************************'
-            print tms
-            print tdi
-            print tdo
-            assert not len(new_tdi) % 8
-            assert not len(new_tdo) % 8
-            printbytes(new_tdi)
-            printbytes(new_tdo)
-            print '*****************************'
-
-        return write_template, read_template
+        return ''.join(write_template), ''.join(read_template)
