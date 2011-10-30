@@ -7,7 +7,7 @@ License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 import collections
 import itertools
 
-from .template import JtagTemplateFactory
+from .template import JtagTemplate
 from ..bsdl.lookup import PartInfo
 
 binnum = '{0:b}'.format
@@ -25,7 +25,7 @@ class Chain(list):
         if bad:
             raise SystemExit('Bad argument(s): %s' % ', '.join(sorted(bad)))
         vars(self).update(kw)
-        self.cmds = JtagTemplateFactory(jtagrw)
+        self.jtagrw = jtagrw
         idcodes = self.repeat_read(self.read_ids, 'IDCODE')
         self.dev_ids = dev_ids = self.find_ids(idcodes)
         self.numdevs = len(dev_ids)
@@ -52,10 +52,9 @@ class Chain(list):
         return value
 
     def read_ids(self):
-        cmds = self.cmds
         while 1:
             maxlen = 32 * self.mindev_idcode + self.maxdev_noid + 1
-            idinfo = self.cmds.new.readd(maxlen+33, tdi=1)()[0]
+            idinfo = JtagTemplate(self.jtagrw).readd(maxlen+33, tdi=1)()[0]
             if self.checkread(idinfo, maxlen, "IDCODE/BYPASS"):
                 break
             if self.mindev_idcode > self.maxdev_idcode:
@@ -66,7 +65,7 @@ class Chain(list):
     def read_ir(self):
         max_irbits = self.max_irbits
         maxlen = self.numdevs * max_irbits + 1
-        ir = self.cmds.new.readi(maxlen + max_irbits + 1, tdi=1)()[0]
+        ir = JtagTemplate(self.jtagrw).readi(maxlen + max_irbits + 1, tdi=1)()[0]
         if not self.checkread(ir, maxlen, "IR"):
             raise SystemExit("Unexpectedly long instruction register: %x" % binnum(ir))
         return ir
