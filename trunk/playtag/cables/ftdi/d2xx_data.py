@@ -53,6 +53,4 @@ class Jtagger(StringXferMixin):
         assert count.value == numbytes
         allbits = [formatter(x) for x in reversed(dest[:numints])]
         allbits[0] = allbits[0][numints * 64 - numbits:]
-        result = join(allbits)
-        assert len(result) == numbits
-        return result
+        return allbits

@@ -158,9 +158,7 @@ class Jtagger(HIF, StringXferMixin):
                 check(DjtgPutTmsTdiBits, self, *self.rparams)
             allbits = [formatter(x) for x in reversed(self.dest[:numints])]
             allbits[0] = allbits[0][leftpad:]
-            result = ''.join(allbits)
-            assert len(result) == numbits
-            return result
+            return allbits
         else:
             if not profile or numbits < 1000:
                 check(DjtgPutTmsTdiBits, self, *self.wparams)
