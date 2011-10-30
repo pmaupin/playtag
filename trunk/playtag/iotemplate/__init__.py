@@ -26,6 +26,10 @@ Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
 License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
 
+class TDIVariable(object):
+    def __init__(self, index=0):
+        self.index = index
+
 class IOTemplate(object):
     ''' The default template uses JTAG-specific identifiers for internal
         variables.  Should still work for SPI, although I haven't yet
