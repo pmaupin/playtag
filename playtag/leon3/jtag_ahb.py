@@ -96,7 +96,7 @@ class BusDriver(dict):
         ''' Read an aligned byte, halfword, or word
         '''
         cmd = self[False, 1, size]
-        yield (cmd([addr])[0] << (8 * (size + (addr & 3)))) >> 32
+        yield (cmd([addr]).next() << (8 * (size + (addr & 3)))) >> 32
 
     def writesingle(self, addr, size, value):
         ''' Write an aligned byte, halfword, or word

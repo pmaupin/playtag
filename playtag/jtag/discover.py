@@ -54,7 +54,7 @@ class Chain(list):
     def read_ids(self):
         while 1:
             maxlen = 32 * self.mindev_idcode + self.maxdev_noid + 1
-            idinfo = JtagTemplate(self.jtagrw).readd(maxlen+33, tdi=1)()[0]
+            idinfo = JtagTemplate(self.jtagrw).readd(maxlen+33, tdi=1)().next()
             if self.checkread(idinfo, maxlen, "IDCODE/BYPASS"):
                 break
             if self.mindev_idcode > self.maxdev_idcode:
@@ -65,7 +65,7 @@ class Chain(list):
     def read_ir(self):
         max_irbits = self.max_irbits
         maxlen = self.numdevs * max_irbits + 1
-        ir = JtagTemplate(self.jtagrw).readi(maxlen + max_irbits + 1, tdi=1)()[0]
+        ir = JtagTemplate(self.jtagrw).readi(maxlen + max_irbits + 1, tdi=1)().next()
         if not self.checkread(ir, maxlen, "IR"):
             raise SystemExit("Unexpectedly long instruction register: %x" % binnum(ir))
         return ir

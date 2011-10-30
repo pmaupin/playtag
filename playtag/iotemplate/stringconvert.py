@@ -212,9 +212,10 @@ class TemplateStrings(object):
         sourcesize = len(self.tdo_xstring)
         join=''.join
         def tdo_extractor(s):
+            s = ''.join(s)
             assert len(s) == sourcesize, (len(s), sourcesize)
             s = join(s[x] for x in keep)
-            return [int(s[x], 2) for x in extract]
+            return (int(s[x], 2) for x in extract)
         self.tdo_extractor = tdo_extractor
 
     def __init__(self, base_template, str=str):
