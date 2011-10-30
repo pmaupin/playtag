@@ -16,7 +16,7 @@ License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 
 from ..bsdl.lookup import readfile, PartParameters, PartInfo
 from ..jtag.discover import Chain
-from ..jtag.template import JtagTemplate
+from ..jtag.template import JtagTemplate, TDIVariable
 from ..lib.bus32 import Bus32
 
 class LeonPart(PartParameters):
@@ -45,6 +45,8 @@ class BusDriver(dict):
     big_endian = True
     addr_align = 1024
     max_bytes = 16384
+
+    data_var = TDIVariable(1)
 
     def __init__(self, jtagrw, UserConfig):
         PartInfo.addparts(LeonPart(x) for x in readfile(UserConfig.JTAGID_FILE))
@@ -75,6 +77,7 @@ class BusDriver(dict):
         '''
         write, length, size = key
         name = '%s_%d_%d' % ('write' if write else 'read', length, size)
+        data = self.data_var if write else 0
         self[key] = cmd = JtagTemplate(self.jtagrw, name)
         outerloop = (length + 255) / 256
         innerloop = (length + 255) % 256
@@ -88,8 +91,8 @@ class BusDriver(dict):
             cmd.update(cmd.select_dr).loop()
             cmd.writei(ilength, cmdi).writed(32, adv=0).writed(3, businfo)
             cmd.writei(ilength, datai).loop()
-            readwrite(32, adv=0).writed(1, 1).endloop(innerloop)
-            readwrite(32, adv=0).writed(1, 0).endloop(outerloop)
+            readwrite(32, tdi=data, adv=0).writed(1, 1).endloop(innerloop)
+            readwrite(32, tdi=data, adv=0).writed(1, 0).endloop(outerloop)
         return cmd
 
     def readsingle(self, addr, size):
@@ -102,7 +105,7 @@ class BusDriver(dict):
         ''' Write an aligned byte, halfword, or word
         '''
         cmd = self[True, 1, size]
-        cmd([addr, value << (8 * (4 - size - (addr & 3)))])
+        cmd([addr], [value << (8 * (4 - size - (addr & 3)))])
 
 
     def readmultiple(self, addr, length):
@@ -111,7 +114,8 @@ class BusDriver(dict):
             we send one read address for each block.
         '''
         cmd = self[False, length, 4]
-        for word in cmd([addr+index for index in range(0, length * 4, 1024)]):
+        addr = range(addr, addr + length * 4, 1024)
+        for word in cmd(addr):
             yield word
 
     def writemultiple(self, addr, value, offset, length):
@@ -120,14 +124,8 @@ class BusDriver(dict):
             we send one write address for each block.
         '''
         cmd = self[True, length, 4]
-        data = []
-        chunksize = min(length, 256)
-        for index in range(0, length, 256):
-            data.append(addr)
-            data.extend(value[offset:offset+chunksize])
-            offset += 256
-            addr += 1024
-        cmd(data)
+        addr = range(addr, addr + length * 4, 1024)
+        cmd(addr, value[offset:offset+length])
 
 def LeonMem(jtagrw, UserConfig):
     return Bus32(BusDriver(jtagrw, UserConfig))

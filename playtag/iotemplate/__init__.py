@@ -198,7 +198,7 @@ class IOTemplate(object):
     # As with strings, addition is not commmutative, but multiplication is.
     __rmul__ = __mul__
 
-    def __call__(self, tdi=[]):
+    def __call__(self, *tdi):
         ''' Calling the object will pass the template to the underlying
             cable driver object.  We ask the cable driver to make a
             cable-specific version of the template, which we then cache.
