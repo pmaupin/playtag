@@ -30,6 +30,8 @@ class Jtagger(StringXferMixin):
              First bit sent is the last bit in the string...
         '''
         numbits = len(sendstr)
+        if not numbits:
+            return
         write, sourcelen, source, sourceref, count, countref = self.wparams
         assert not numbits & 7
         numbytes = (numbits + 7) / 8

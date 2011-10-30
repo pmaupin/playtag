@@ -141,6 +141,8 @@ class Jtagger(HIF, StringXferMixin):
              First bit sent is the last bit in the string...
         '''
         numbits = len(tms)
+        if not numbits:
+            return
         assert 0 < numbits == len(tdi) <= self.maxbits
         numints = (numbits + 63) / 64
         leftpad = numints * 64 - numbits
