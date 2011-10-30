@@ -1,16 +1,26 @@
 '''
-This package provides "IO templates."
+This package provides generic "IO templates."
 
 There are two kinds of IO templates:
 
    Cable-independent IO templates are built using higher-level JTAG or SPI code.
    They are then transformed into cable-specific IO templates.
 
-   This init file contains the base class for the cable independent IO template.
-   The package directory can contain useful pieces for building cable-specific
-   templates, but there are no real rules on where that code goes -- if a cable
-   is so weird that its functions won't be useful for any other cable, that code
-   could go in the cable-specific directory.
+This init file contains the base class for the cable independent IO template.
+
+This base class is subclassed, e.g. by jtag.tamplate.JtagTemplate to make
+an IO template that has knowledge of JTAG but is still cable-independent.
+Each template is then converted into cable-specific templates by the
+cable driver the first time it is used.
+
+The package directory can contain useful pieces for building cable-specific
+templates, but there are no real rules on where that code goes -- if a cable
+is so weird that its functions won't be useful for any other cable, that code
+could go in the cable-specific directory.
+
+Currently, the file 'stringconvert.py' resides in this directory.  It can
+handle the current template conversion for digilent cables, and handles a
+lot of the template conversion for FTDI cables.
 
 Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
 License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
@@ -20,6 +30,9 @@ class IOTemplate(object):
     ''' The default template uses JTAG-specific identifiers for internal
         variables.  Should still work for SPI, although I haven't yet
         worked out the MSB/LSB logic.
+
+        This class is subclassed by the JtagTemplate class to add
+        protocol-specific attributes and methods.
 
         Variable attributes:
 
@@ -33,14 +46,22 @@ class IOTemplate(object):
                      - number of bits to retrieve
             prevread -- starting position of last tuple in tdo list
             devtemplate -- Device-specific template
+            loopstack -- used for building up a template by looping
+                         back using loop() and endloop()
 
         Note:  tdo entries are maintained with offsets from previous
                entries to make it easier to splice templates together.
     '''
     prevread = 0          # Location of previous read
     devtemplate = None    # Translated device-specific template
+                          # Clear this when modifying the object
+
+    loopstack = None      # Nothing on the loop stack to start with
 
     def __init__(self, cable=None, cmdname='', proto_info=None):
+        ''' Initialize all our data.  cmdname is just for debugging.
+            proto_info is currently unused.
+        '''
         self.cable=cable
         self.cmdname = cmdname
         self.tms = []
@@ -48,22 +69,67 @@ class IOTemplate(object):
         self.tdo = []
         self.protocol_init(proto_info)
     def protocol_init(self, proto_info):
+        ''' To be overridden by protocol-specific subclass
+        '''
         pass
 
     def __len__(self):
         return len(self.tms)
 
     def copy(self):
+        ''' Make a copy of the instance.
+        '''
         new = type(self)(self.cable, self.cmdname)
         new.tms = list(self.tms)
         new.tdi = list(self.tdi)
         new.tdo = list(self.tdo)
         new.prevread = self.prevread
+        new.loopstack = self.loopstack
         return self.protocol_copy(new)
     def protocol_copy(self, new):
+        ''' To be overridden by protocol-specific subclass
+        '''
         return new
 
+    def loop(self):
+        ''' loop/endloop pairs mark a section of the template
+            that is to be repeated a fixed number of times.
+            The endloop is passed the repeat count.  Zero is
+            allowed.
+
+            Push all our state onto the stack.  Do this
+            by creating a 'prev' object and then stuffing
+            our dict into the prev object.
+        '''
+        self.devtemplate = None
+        prev = type(self)(self.cable)
+        prev.states = [self.states[-1]]
+        prev.__dict__, self.__dict__ = self.__dict__, prev.__dict__
+        self.loopstack = prev
+        return self
+
+    def endloop(self, count):
+        ''' loop/endloop pairs mark a section of the template
+            that is to be repeated a fixed number of times.
+            The endloop is passed the repeat count.  Zero is
+            allowed.
+
+            Restore our state from a combination of our
+            current state (from inside the loop) and the
+            state on most recent object on the loopstack.
+            Loops can be nested.
+        '''
+        prev, self.loopstack = self.loopstack, None
+        assert type(prev) is type(self)
+        self.__dict__ = (prev + count * self).__dict__
+        return self
+
     def __add__(self, other):
+        ''' Add two template objects together to form
+            a new object.  Optimize addition of constant
+            tdi strings.  This is used by the loop/endloop
+            construct.
+        '''
         self = self.copy()
         tms, tdi, tdo = self.tms, self.tdi, self.tdo
         otms, otdi, otdo = other.tms, other.tdi, other.tdo
@@ -83,9 +149,16 @@ class IOTemplate(object):
         tms += otms
         return self.protocol_add(other)
     def protocol_add(self, other):
+        ''' To be overridden by protocol-specific subclass
+        '''
         return self
 
     def __mul__(self, multiplier):
+        ''' Return a new instance that is the current instance
+            multiplied by a constant.
+
+            This is used by the loop/endloop construct.
+        '''
         assert multiplier >= 0 and int(multiplier) == multiplier, multiplier
         if multiplier == 0:
             return type(self)(self.cable)
@@ -114,11 +187,24 @@ class IOTemplate(object):
         tms *= multiplier
         return self.protocol_mul(multiplier)
     def protocol_mul(self, multiplier):
+        ''' To be overridden by protocol-specific subclass
+        '''
         return self
 
+    # As with strings, addition is not commmutative, but multiplication is.
     __rmul__ = __mul__
 
     def __call__(self, tdi=[]):
+        ''' Calling the object will pass the template to the underlying
+            cable driver object.  We ask the cable driver to make a
+            cable-specific version of the template, which we then cache.
+            On subsequent calls we only have to apply the template.
+
+            The function is passed a list of tdi elements to apply
+            the template to, and if the template had any tdo elements
+            in it, the function will return an iterable for the tdo
+            data.
+        '''
         devtemplate = self.devtemplate
         if devtemplate is None:
             devtemplate = self.devtemplate = self.cable.make_template(self)
