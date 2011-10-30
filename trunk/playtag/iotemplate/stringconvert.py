@@ -78,12 +78,16 @@ class TemplateStrings(object):
             and then merge it with the constant string now.
         '''
         strings = []
-        index = 0
+        counts = []
         total_bits = 0
         for numbits, value in tdi_template:
             if isinstance(value, TDIVariable):
-                strings.append('{0[%d]:0%db}' % (index, numbits))
-                index += 1
+                index = value.index
+                missing = index + 1 - len(counts)
+                if missing:
+                    counts.extend(missing * [0])
+                strings.append('{%d[%d]:0%db}' % (index, counts[index], numbits))
+                counts[index] += 1
                 total_bits += numbits
         strings.reverse()
         format = ''.join(strings).format
@@ -92,9 +96,10 @@ class TemplateStrings(object):
         def tdi_converter(tdi):
             ''' Dump all the TDI data into one big honking boolean string.
             '''
-            if len(tdi) != index:
-                raise ValueError("Expected %d TDI elements; got %d" % (index, len(tdi)))
-            tdistr = format(tdi)
+            lengths = [len(x) for x in tdi]
+            if lengths != counts:
+                raise ValueError("Expected %d TDI elements; got %d" % (counts, lengths))
+            tdistr = format(*tdi)
             assert len(tdistr) == total_bits, (total_bits, len(tdistr))
             return tdistr
         self.tdi_converter = tdi_converter
