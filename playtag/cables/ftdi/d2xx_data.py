@@ -22,16 +22,17 @@ class Jtagger(StringXferMixin):
         self.wparams = driver.Write, len(source) * 64, source, byref(source), count, byref(count)
         self.rparams = driver.Read, len(dest) * 64, dest, byref(dest)
 
-    def __call__(self, sendstr, rcvlen, formatter = '{0:064b}'.format,
+    def __call__(self, sendstr, numbits, rcvlen, formatter = '{0:064b}'.format,
                           int=int, len=len, join=''.join, tee=itertools.tee,
                           chain=itertools.chain, izip=itertools.izip, xrange=xrange):
         '''  Passed tms/tdi info.  Returns tdo.
              All these are strings of '0' and '1'.
              First bit sent is the last bit in the string...
         '''
-        numbits = len(sendstr)
         if not numbits:
             return
+        sendstr = join(sendstr)
+        assert len(sendstr) == numbits
         write, sourcelen, source, sourceref, count, countref = self.wparams
         assert not numbits & 7
         numbytes = (numbits + 7) / 8
