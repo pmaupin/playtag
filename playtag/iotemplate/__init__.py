@@ -124,17 +124,3 @@ class IOTemplate(object):
             devtemplate = self.devtemplate = self.cable.make_template(self)
             self.apply_template = self.cable.apply_template
         return self.apply_template(devtemplate, tdi)
-
-class TemplateFactory(object):
-    TemplateClass = IOTemplate
-    proto_info = None
-
-    def __init__(self, cable=None):
-        self.cable = cable
-    def __getattr__(self, name):
-        result = self.TemplateClass(self.cable, name, self.proto_info)
-        setattr(self, name, result)
-        return result
-    @property
-    def new(self):
-        return self.TemplateClass(self.cable, '<unknown>', self.proto_info)

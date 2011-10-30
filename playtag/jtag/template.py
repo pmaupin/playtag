@@ -111,6 +111,3 @@ class JtagTemplate(iotemplate.IOTemplate):
         return self.enter_state(self.shift_ir).update(numbits, tdi, adv, True).exit_state(adv)
     def readd(self, numbits, adv=True, tdi=0):
         return self.enter_state(self.shift_dr).update(numbits, tdi, adv, True).exit_state(adv)
-
-class JtagTemplateFactory(iotemplate.TemplateFactory):
-    TemplateClass = JtagTemplate
