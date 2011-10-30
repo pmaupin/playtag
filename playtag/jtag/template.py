@@ -13,6 +13,9 @@ License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 from .states import states as jtagstates
 from .. import iotemplate
 
+TDIVariable = iotemplate.TDIVariable
+defaultvar = TDIVariable()
+
 class JtagTemplate(iotemplate.IOTemplate):
     ''' A JtagTemplate object is used to define
         a path through the JTAG state machine with
@@ -64,7 +67,7 @@ class JtagTemplate(iotemplate.IOTemplate):
         states.append(endstate)
         return self
 
-    def update(self, state, tdi=None, adv=None, read=False):
+    def update(self, state, tdi=defaultvar, adv=None, read=False):
         ''' update is the primary function that adds information to the
             template.  Other functions call update.
             'state' is either a number of times to remain in the current
@@ -96,7 +99,7 @@ class JtagTemplate(iotemplate.IOTemplate):
             states.append(state)
             tmslist.extend(newtms)
             numbits = len(newtms)
-            if tdi is None:
+            if tdi is defaultvar:
                 tdi = numbits * '*'
             assert not read
         self.tdi.append((numbits, tdi))
@@ -120,12 +123,12 @@ class JtagTemplate(iotemplate.IOTemplate):
             self.update(self.select_dr)
         return self
 
-    def writei(self, numbits, tdi=None, adv=True):
+    def writei(self, numbits, tdi=defaultvar, adv=True):
         ''' Write to the JTAG instruction register
         '''
         return self.enter_state(self.shift_ir).update(numbits, tdi, adv).exit_state(adv)
 
-    def writed(self, numbits, tdi=None, adv=True):
+    def writed(self, numbits, tdi=defaultvar, adv=True):
         ''' Write to the JTAG data register
         '''
         return self.enter_state(self.shift_dr).update(numbits, tdi, adv).exit_state(adv)

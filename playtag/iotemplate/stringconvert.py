@@ -17,6 +17,7 @@ License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
 import re
 import itertools
+from ..iotemplate import TDIVariable
 
 x_splitter = re.compile('(x+)').split
 
@@ -41,7 +42,7 @@ class TemplateStrings(object):
     '''
     tdo_extractor = None
 
-    def set_tdi_xstring(self, tdi_template, isinstance=isinstance, str=str, len=len):
+    def set_tdi_xstring(self, tdi_template, isinstance=isinstance, str=str, len=len, TDIVariable=TDIVariable):
         ''' Create a string of '0', '1', and 'x' based on the
             template TDI.  This string might later be modified by
             driver-specific code to insert commands for the JTAG
@@ -49,7 +50,7 @@ class TemplateStrings(object):
         '''
         strings = []
         for numbits, value in tdi_template:
-            if value is None:
+            if isinstance(value, TDIVariable):
                 value = numbits * 'x'
             elif not isinstance(value, str):
                 if value < 0:
@@ -80,7 +81,7 @@ class TemplateStrings(object):
         index = 0
         total_bits = 0
         for numbits, value in tdi_template:
-            if value is None:
+            if isinstance(value, TDIVariable):
                 strings.append('{0[%d]:0%db}' % (index, numbits))
                 index += 1
                 total_bits += numbits
