@@ -110,6 +110,7 @@ class CmdProcessor(CmdGdb):
                 status.append('DSU break')
             self.write_console('\nCPU Info: %s\n' % ', '.join(status))
             self.flushcache()
+            self.ahb_write(0)
             return True
 
         load_dsuctl = self.load_dsuctl
@@ -153,6 +154,7 @@ class CmdProcessor(CmdGdb):
                 bytes = addr, mask
             index = wpnum*2
             self.watchio[index:index+2] = bytes
+        self.ahb_write(0)
         return 0
 
     def __init__(self, ahb, userconfig):
@@ -206,6 +208,7 @@ class CmdProcessor(CmdGdb):
             self.ahb_writebyte(addr, length * [0])
         else:
             self.ahb_write(addr, length / 4 * [0])
+        self.ahb_write(0)
         return "Cleared 0x%08x bytes at 0x%08x" % (length, addr)
 
     def monitor_verify(self, line):
@@ -251,10 +254,12 @@ class CmdProcessor(CmdGdb):
             return "Invalid data in file %s" % line
         self.write_console("\n\nWriting 0x%08x bytes at 0x%08x..." % (len(data) * 4, self.leoncfg.AHB_RAM_ADDR))
         self.ahb_write(self.leoncfg.AHB_RAM_ADDR, data)
+        self.ahb_write(0)
         return "Done."
 
     def monitor_reset(self, line):
         if '-q' not in line.split():
             self.write_console("\n\nResetting the CPU.\n\nNOTE:  GDB DOESN'T KNOW THIS AND REGISTERS WILL BE WRONG!!!")
         self.leoncfg.reset()
+        self.ahb_write(0)
         self.watcharray = self.leoncfg.NUM_WATCHPOINTS * [None]
