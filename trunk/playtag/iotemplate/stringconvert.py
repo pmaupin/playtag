@@ -5,7 +5,7 @@ strings, including converting TDI integer data from the application into
 strings, and extracting TDO integer data for the application from strings.
 
 All the strings are binary, consisting of '1' and '0' characters, and sometimes
-'x' to denote variable data.
+'x' to denote variable data and '*' to denote don't care data.
 
 Repository revision 23 contains an earlier version of this code which is
 designed for the digilent cable.  It is much shorter (1/3 the size) and
@@ -65,7 +65,16 @@ class TemplateStrings(object):
     def set_tdi_converter(self, tdi_template, len=len):
         ''' Create a converter that will eat the input
             variable TDI data integers and create a single
-            string with all the data concatenated.
+            boolean string with all the data concatenated.
+
+            The original design for the Digilent driver
+            just interspersed the format information between
+            constant information.  But the FTDI chip doesn't
+            necessarily keep bits from a single input value
+            together because of the way it handles exiting
+            DR_SHIFT or IR_SHIFT, so we just convert all the
+            input variables into a single variable string,
+            and then merge it with the constant string now.
         '''
         strings = []
         index = 0
@@ -80,6 +89,8 @@ class TemplateStrings(object):
         del strings
 
         def tdi_converter(tdi):
+            ''' Dump all the TDI data into one big honking boolean string.
+            '''
             if len(tdi) != index:
                 raise ValueError("Expected %d TDI elements; got %d" % (index, len(tdi)))
             tdistr = format(tdi)
@@ -111,13 +122,14 @@ class TemplateStrings(object):
         join = ''.join
 
         def tdi_combiner(tdi):
-            result = [first_string]
-            append = result.append
+            ''' Return small easily digestible string chunks.
+                Let other devices have their way with them.
+            '''
+            yield first_string
             variables = tdi_converter(tdi)
             for var, const in izip(slices, const_str):
-                append(variables[var])
-                append(const)
-            return join(result)
+                yield variables[var]
+                yield const
         self.tdi_combiner = tdi_combiner
 
     def set_tdo_xstring(self, tdo_template):
@@ -225,8 +237,10 @@ class TemplateStrings(object):
         tdofromstr = self.tdo_extractor
         vars(self).clear()
 
+        join = ''.join
+
         def func(driver, tdi_array):
-            tdostr = driver(tms_template, tditostr(tdi_array), tdofromstr)
+            tdostr = driver(tms_template, join(tditostr(tdi_array)), tdofromstr)
             if tdofromstr:
                 return tdofromstr(tdostr)
         return func
