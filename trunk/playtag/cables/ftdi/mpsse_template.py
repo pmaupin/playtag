@@ -19,12 +19,14 @@ class MpsseTemplate(TemplateStrings):
         tditostr = self.tdi_combiner
         tdofromstr = self.tdo_extractor
         tdo_length = len(self.tdo_xstring)
+        tdi_length = len(self.tdi_xstring)
         vars(self).clear()
 
-        join = ''.join
-
-        def func(driver, tdi_array):
-            tdostr = driver(join(tditostr(tdi_array)), tdo_length)
-            if tdo_length:
+        if tdo_length:
+            def func(driver, tdi_array):
+                tdostr = driver(tditostr(tdi_array), tdi_length, tdo_length)
                 return tdofromstr(tdostr)
+        else:
+            def func(driver, tdi_array):
+                driver(tditostr(tdi_array), tdi_length, tdo_length)
         return func
