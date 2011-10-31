@@ -35,6 +35,7 @@ License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 import collections
 import ctypes
 import itertools
+from binascii import hexlify, unhexlify
 
 class Bus32(object):
     _cachesize = 256
@@ -85,13 +86,13 @@ class Bus32(object):
             count -= chunklen
             offset += chunklen
 
-    def _newremap(self, offset, count, elementsize, numbytes):
+    def _newremap(self, offset, count, elementsize):
         ''' Return a remap class that is a subclass of ctypes.Union,
             and allows easy alignment conversion between internal
             lists and external bytes/halfwords/words.
         '''
-        numbytes = numbytes or count * elementsize
-        elements   = (numbytes + elementsize - 1) // elementsize
+        numbytes = count * elementsize
+        elements = (numbytes + elementsize - 1) // elementsize
         prefixbyte = bool((numbytes >= 1) and (-offset & 1))
         numbytes -= prefixbyte
         prefixhalf = bool((numbytes >= 2) and (-offset & 2))
@@ -130,21 +131,21 @@ class Bus32(object):
                     addr += length * size
         return remap
 
-    def _getremap(self, addr, count, elementsize, numbytes=0):
+    def _getremap(self, addr, count, elementsize):
         ''' It is expensive creating the remap classes, so
             we cache them.
         '''
         offset = addr & 3
-        key = offset, count, elementsize, numbytes
+        key = offset, count, elementsize
         remap = self._getcache(key)
         if remap is None:
-            remap = self._newremap(offset, count, elementsize, numbytes)
+            remap = self._newremap(offset, count, elementsize)
             queue = self._queue
             if len(queue) > self._cachesize:
                 del self._cache[queue.popleft()]
             queue.append(key)
             self._cache[key] = remap
-        return remap()
+        return remap
 
     def _writealigned(self, addr, length, data):
         ''' Write aligned words.  If they can be
@@ -180,7 +181,7 @@ class Bus32(object):
             elif size == 4:
                 return self._writealigned(addr, length, values)
 
-        remap = self._getremap(addr, length, size)
+        remap = self._getremap(addr, length, size)()
         remap.elements[:] = values
         return self._writemisaligned(remap(addr))
 
@@ -199,7 +200,7 @@ class Bus32(object):
         '''
         return self._writeany(addr, value, 1)
 
-    def writestring(self, addr, value, int=int):
+    def writestring(self, addr, value):
         ''' Write data from a string.  Optimize the
             number of integer conversions and whether or
             not to invoke the misalignment mechanism.
@@ -209,21 +210,10 @@ class Bus32(object):
         chars = len(value)
         assert not chars & 1
         length = chars / 2
-        big_endian = self._big_endian
-        if length in (1, 2, 4) and big_endian and not (length-1) & addr:
+        if length in (1, 2, 4) and self._big_endian and not (length-1) & addr:
             return self._writesingle(addr, length, int(value, 16))
-        aligned = (addr | length) & 3 == 0
-        if not big_endian or (not aligned and length < 32):
-            value = [int(value[offset:offset+2], 16) for offset in range(0, chars, 2)]
-            return self._writeany(addr, value, 1)
-        if aligned:
-            value = [int(value[offset:offset+8], 16) for offset in range(0, chars, 8)]
-            return self._writealigned(addr, length/4, value)
-        size = 8
-        remap = self._getremap(addr, 0, size, length)
-        values = (int(value[offset:offset+16], 16) for offset in range(0, chars, 16))
-        remap.elements[:] = list(values)
-        remap.elements[-1] <<= 8 * (-length % size)
+        remap = self._getremap(addr, length, 1)
+        remap = remap.from_buffer_copy(unhexlify(value))
         return self._writemisaligned(remap(addr))
 
     @staticmethod
@@ -268,7 +258,7 @@ class Bus32(object):
         elif aligned and size == 4:
             result = self._readaligned(addr, length)
         else:
-            remap = self._getremap(addr, length, size)
+            remap = self._getremap(addr, length, size)()
             self._readmisaligned(remap(addr))
             result = remap.elements
         if unwrap:
@@ -290,7 +280,7 @@ class Bus32(object):
         '''
         return self._readany(addr, count, 1)
 
-    def readstring(self, addr, length):
+    def readstring(self, addr, length, cache={}):
         ''' Read data and create a string.  Optimize the
             number of format conversions and whether or
             not to invoke the misalignment mechanism.
@@ -300,19 +290,12 @@ class Bus32(object):
         big_endian = self._big_endian
         if length in (1, 2, 4) and big_endian and not (length-1) & addr:
             return '%%0%dx' % (length*2) % self._readsingle(addr, length).next()
-        aligned = (addr | length) & 3 == 0
-        if not big_endian or (length < 32 and not aligned):
-            value = self._readany(addr, length, 1)
-            return ''.join('%02x' % x for x in value)
-        if aligned:
-            value = self._readaligned(addr, length / 4)
-            return ''.join('%08x' % x for x in value)
-        size = 8
-        remap = self._getremap(addr, 0, size, length)
+        if not length:
+            return ''
+        myclass = cache.get(length)
+        if myclass is None:
+            cache[length] = myclass = ctypes.c_char * length
+        mystr = myclass()
+        remap = self._getremap(addr, length, 1).from_buffer(mystr)
         self._readmisaligned(remap(addr))
-        values = ('%016x' % x for x in remap.elements)
-        lastlen = (length % size) * 2
-        if lastlen:
-            values = list(values)
-            values[-1] = values[-1][:lastlen]
-        return ''.join(values)
+        return hexlify(mystr)
