@@ -9,7 +9,7 @@ from itertools import izip
 from ctypes import c_ubyte, c_char, c_uint32, c_int, c_ulonglong, POINTER, c_char_p, CDLL, byref, cast, Structure
 import atexit
 
-from ...iotemplate.stringconvert import StringXferMixin
+from ...iotemplate.stringconvert import TemplateStrings
 
 test = __name__ == '__main__'
 profile = False
@@ -88,7 +88,7 @@ def showdevs():
         print '    ', DevName(index)
     print
 
-class Jtagger(HIF, StringXferMixin):
+class Jtagger(HIF, TemplateStrings.mix_me_in()):
     isopen = False
     isenabled = False
     def __init__(self, UserConfig, maxbits=2**22):
