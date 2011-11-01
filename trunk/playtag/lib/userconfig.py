@@ -12,9 +12,9 @@ class UserConfig(object):
     root = None
 
     def loadfile(self, fname):
+        if self.root is None:
+            self.root = os.path.dirname(sys.argv[0])
         if not os.path.exists(fname):
-            if self.root is None:
-                self.root = os.path.dirname(sys.argv[0])
             fname = os.path.join(self.root, fname)
             if not os.path.exists(fname):
                 raise SystemExit("\nCannot find configuration file %s\n" % fname)
