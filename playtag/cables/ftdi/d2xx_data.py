@@ -1,7 +1,7 @@
 import itertools
 from ctypes import c_ulonglong, byref
 from .d2xx import FtdiDevice
-from .mpsse_template import MpsseTemplate, StringXferMixin
+from .mpsse_template import MpsseTemplate
 
 def debug(title, data, numbytes):
     print title,
@@ -9,8 +9,7 @@ def debug(title, data, numbytes):
         print '%02x' % ((data[i/8] >> ((i % 8) * 8)) & 0xFF),
     print
 
-class Jtagger(StringXferMixin):
-    TemplateStrings = MpsseTemplate
+class Jtagger(MpsseTemplate.mix_me_in()):
 
     def __init__(self, devname, maxbits=2**22):
         driver = FtdiDevice(devname)

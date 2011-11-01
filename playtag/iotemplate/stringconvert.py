@@ -15,13 +15,10 @@ to be able to support the FTDI MPSSE.
 Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
 License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
-import re
 import itertools
-from ..iotemplate import TDIVariable
+from .basexstring import BaseXString
 
-x_splitter = re.compile('(x+)').split
-
-class TemplateStrings(object):
+class TemplateStrings(BaseXString):
     ''' This class contains code to help compile device-independent template
         information into device-specific data.  This progresses in stages:
           1) First, long strings are generated for tms, tdi, and tdo.
@@ -42,28 +39,7 @@ class TemplateStrings(object):
     '''
     tdo_extractor = None
 
-    def set_tdi_xstring(self, tdi_template, isinstance=isinstance, str=str, len=len, TDIVariable=TDIVariable):
-        ''' Create a string of '0', '1', and 'x' based on the
-            template TDI.  This string might later be modified by
-            driver-specific code to insert commands for the JTAG
-            cable.
-        '''
-        strings = []
-        for numbits, value in tdi_template:
-            if isinstance(value, TDIVariable):
-                value = numbits * 'x'
-            elif not isinstance(value, str):
-                if value < 0:
-                    assert value == -1, value
-                    value = (1 << numbits) - 1
-                value = '{0:0{1}b}'.format(value, numbits)
-            assert len(value) == numbits, (value, numbits)
-            strings.append(value)
-        strings.reverse()
-        self.tdi_xstring = ''.join(strings)
-        assert len(self.tdi_xstring) == self.transaction_bit_length
-
-    def set_tdi_converter(self, tdi_template, len=len):
+    def get_tdi_converter(self, len=len):
         ''' Create a converter that will eat the input
             variable TDI data integers and create a single
             boolean string with all the data concatenated.
@@ -80,15 +56,13 @@ class TemplateStrings(object):
         strings = []
         counts = []
         total_bits = 0
-        for numbits, value in tdi_template:
-            if isinstance(value, TDIVariable):
-                index = value.index
-                missing = index + 1 - len(counts)
-                if missing:
-                    counts.extend(missing * [0])
-                strings.append('{%d[%d]:0%db}' % (index, counts[index], numbits))
-                counts[index] += 1
-                total_bits += numbits
+        for numbits, index in self.tdi_bits:
+            missing = index + 1 - len(counts)
+            if missing:
+                counts.extend(missing * [0])
+            strings.append('{%d[%d]:0%db}' % (index, counts[index], numbits))
+            counts[index] += 1
+            total_bits += numbits
         strings.reverse()
         format = ''.join(strings).format
         del strings
@@ -97,20 +71,20 @@ class TemplateStrings(object):
             ''' Dump all the TDI data into one big honking boolean string.
             '''
             lengths = [len(x) for x in tdi]
-            if lengths != counts:
-                raise ValueError("Expected %d TDI elements; got %d" % (counts, lengths))
+            if lengths != counts and (counts or sum(lengths)):
+                raise ValueError("Expected %s TDI elements; got %s" % (counts, lengths))
             tdistr = format(*tdi)
             assert len(tdistr) == total_bits, (total_bits, len(tdistr))
             return tdistr
-        self.tdi_converter = tdi_converter
+        return tdi_converter
 
-    def set_tdi_combiner(self, len=len, slice=slice):
+    def get_tdi_combiner(self, len=len, slice=slice):
         ''' Create a combiner function that will use the
             tdi_converter and the tdi_string to merge the
             constant and variable portions of the TDI
             data together.
         '''
-        strings = x_splitter(self.tdi_xstring)
+        strings = self.x_splitter(self.tdi_xstring)
         first_string = strings[0]
         const_str = strings[2::2]
         bitlens = (len(x) for x in itertools.islice(strings, 1, None, 2))
@@ -123,7 +97,7 @@ class TemplateStrings(object):
         assert len(slices) == len(const_str)
         del strings, bitlens
 
-        tdi_converter = self.tdi_converter
+        tdi_converter = self.get_tdi_converter()
         izip = itertools.izip
         join = ''.join
 
@@ -136,34 +110,7 @@ class TemplateStrings(object):
             for var, const in izip(slices, const_str):
                 yield variables[var]
                 yield const
-        self.tdi_combiner = tdi_combiner
-
-    def set_tdo_xstring(self, tdo_template):
-        ''' Sets '*' for bit positions where we do not require input,
-            or 'x' for those positions requiring input.  This string
-            might later be modified by driver-specific code before
-            being used.
-        '''
-        self.tdo_bits = [x[1] for x in tdo_template]
-        self.tdo_bits.reverse()
-        if not tdo_template:
-            self.tdo_xstring = self.transaction_bit_length * '*'
-            return
-        strings = []
-        strloc = 0
-        prevlen = 0
-        total = 0
-        for offset, slicelen in tdo_template:
-            offset -= prevlen
-            assert offset >= 0
-            strings.append('*' * offset)
-            strings.append('x' * slicelen)
-            prevlen = slicelen
-            total += offset + slicelen
-        strings.append('*' * (self.transaction_bit_length - total))
-        strings.reverse()
-        self.tdo_xstring = ''.join(strings)
-        assert len(self.tdo_xstring) == self.transaction_bit_length
+        return tdi_combiner
 
     def get_tdo_extractor_slices(self, len=len, slice=slice):
         ''' This function is somewhat complicated by support for
@@ -180,7 +127,7 @@ class TemplateStrings(object):
             words.  In some cases, this might mean keeping all
             the data.
         '''
-        strings = x_splitter(self.tdo_xstring)
+        strings = self.x_splitter(self.tdo_xstring)
         constbits = (len(x) for x in itertools.islice(strings, 0, None, 2))
         varbits = (len(x) for x in itertools.islice(strings, 1, None, 2))
         wordbits = list(self.tdo_bits)
@@ -210,7 +157,7 @@ class TemplateStrings(object):
         extract.reverse()
         return keep, extract
 
-    def set_tdo_extractor(self, len=len, int=int):
+    def get_tdo_extractor(self, len=len, int=int):
         ''' Define a function that will extract a list of integers
             from the TDO string from the driver.
         '''
@@ -222,48 +169,21 @@ class TemplateStrings(object):
             assert len(s) == sourcesize, (len(s), sourcesize)
             s = join(s[x] for x in keep)
             return (int(s[x], 2) for x in extract)
-        self.tdo_extractor = tdo_extractor
+        return tdo_extractor
 
-    def __init__(self, base_template, str=str):
-        self.tms_string = ''.join(str(x) for x in reversed(base_template.tms))
-        self.transaction_bit_length = len(self.tms_string)
-        self.set_tdi_xstring(base_template.tdi)
-        self.set_tdi_converter(base_template.tdi)
-        self.set_tdo_xstring(base_template.tdo)
-        self.customize_template()
-        self.set_tdi_combiner()
-        if self.tdo_bits:
-            self.set_tdo_extractor()
-
-    def customize_template(self):
+    def get_xfer_func(self, join=''.join):
         self.tdi_xstring = self.tdi_xstring.replace('*', '0')
-
-    def get_xfer_func(self):
         tms_template = self.tms_string
-        tditostr = self.tdi_combiner
-        tdofromstr = self.tdo_extractor
-        vars(self).clear()
+        tditostr = self.get_tdi_combiner()
 
-        join = ''.join
-
-        def func(driver, tdi_array):
-            tdostr = driver(tms_template, join(tditostr(tdi_array)), tdofromstr)
-            if tdofromstr:
+        if self.tdo_bits:
+            tdofromstr = self.get_tdo_extractor()
+            def func(driver, tdi_array):
+                tdostr = driver(tms_template, join(tditostr(tdi_array)), tdofromstr)
                 return tdofromstr(tdostr)
+        else:
+            def func(driver, tdi_array):
+                driver(tms_template, join(tditostr(tdi_array)), None)
+
+        vars(self).clear()
         return func
-
-class StringXferMixin(object):
-    ''' A cable driver helper that can convert cable-independent
-        templates and data into long strings, and back
-        from long strings.
-
-        This is designed to be a mix-in class.  It assumes that
-        it can simply call self() in order to transfer data
-        to/from the underlying driver object.  It is used,
-        e.g. by the digilent driver.
-    '''
-    TemplateStrings = TemplateStrings
-    def make_template(self, base_template):
-        return self.TemplateStrings(base_template).get_xfer_func()
-    def apply_template(self, template, tdi_array):
-        return template(self, tdi_array)
