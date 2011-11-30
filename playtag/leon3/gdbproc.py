@@ -87,7 +87,7 @@ class CmdProcessor(CmdGdb):
 
     def cpu_pollstop(self):
 
-        def poll(ctrlc):
+        def poll(ctrlc=False):
             ctl = load_dsuctl()
             brk = load_dsubrk()
             if not ctl.value & stopmask:
@@ -130,11 +130,9 @@ class CmdProcessor(CmdGdb):
             return 21      # Error -- unknown breakpoint
         watcharray = self.watcharray
         end = addr + size + 3
-        print addr, end, size
         end = max(end - (end & 3), 4)
         addr -= addr & 3
         size = end - addr
-        print addr, end, size
         if size & (size-1):
             return 20      # Error -- must be binary
         ex = btype in (1,4)

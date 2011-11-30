@@ -6,16 +6,16 @@ Simplistic GDB server for LEON.
 import os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+
 from playtag.lib.userconfig import UserConfig
+from playtag.gdb.transport import connection
+from playtag.leon3.jtag_ahb import LeonMem
+from playtag.leon3.gdbproc import CmdProcessor
 
 config = UserConfig()
 args = config.loaddefault('leongdb.cfg')
 if args:
     raise SystemExit("Unsupported arguments: %s" % args)
-
-from playtag.gdb.transport import connection
-from playtag.leon3.jtag_ahb import LeonMem
-from playtag.leon3.gdbproc import CmdProcessor
 
 cablemodule = config.getcable()
 
@@ -42,4 +42,9 @@ except:
 if config.SHOW_CONFIG:
     print config.dump()
 
-connection(processor, address=config.SOCKET_ADDRESS, logpackets=config.LOGPACKETS)
+def serve_gdb():
+    connection(processor, address=config.SOCKET_ADDRESS, logpackets=config.LOGPACKETS)
+
+if __name__ == '__main__':
+    serve_gdb()
+
