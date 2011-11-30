@@ -168,7 +168,10 @@ class CmdGdb(object):
         return chr2hex(self.monitor(hex2chr(data)))
 
     def write_console(self, line):
-        self.async_send('O' + chr2hex(line))
+        if hasattr(self, 'async_send'):
+            self.async_send('O' + chr2hex(line))
+        else:
+            print line
 
     def break_status(self, *data):
         '''  Return the reason why we stopped
