@@ -20,10 +20,13 @@ class Chain(list):
     min_irbits = 2      # At least INTEST, EXTEST, and BYPASS
     repeat_count = 4
 
+    def error(self, msg):
+        raise SystemExit('\nError: %s\n' % msg)
+
     def __init__(self, jtagrw, **kw):
         bad = set(kw) - set(vars(type(self)))
         if bad:
-            raise SystemExit('Bad argument(s): %s' % ', '.join(sorted(bad)))
+            self.error("Bad argument(s): %s" % ', '.join(sorted(bad)))
         vars(self).update(kw)
         self.jtagrw = jtagrw
         idcodes = self.repeat_read(self.read_ids, 'IDCODE')
@@ -46,7 +49,7 @@ class Chain(list):
     def repeat_read(self, func, info):
         readset = set(func() for i in range(self.repeat_count))
         if len(readset) > 1:
-            raise SystemExit("Inconsistent JTAG reads (%s):\n    %s\n" % (
+            self.error("Inconsistent JTAG reads (%s):\n    %s" % (
                     info, "\n    ".join(sorted(binnum(x) for x in readset))))
         value, = readset
         return value
@@ -57,8 +60,8 @@ class Chain(list):
             idinfo = JtagTemplate(self.jtagrw).readd(maxlen+33, tdi=1)().next()
             if self.checkread(idinfo, maxlen, "IDCODE/BYPASS"):
                 break
-            if self.mindev_idcode > self.maxdev_idcode:
-                raise SystemExit("JTAG chain has more than %s devices in it" % self.maxdev_idcode)
+            if self.mindev_idcode >= self.maxdev_idcode:
+                self.error("JTAG chain appears to have more than %s devices in it." % self.maxdev_idcode)
             self.mindev_idcode = min(self.mindev_idcode * 2, self.maxdev_idcode)
         return idinfo
 
@@ -67,17 +70,16 @@ class Chain(list):
         maxlen = self.numdevs * max_irbits + 1
         ir = JtagTemplate(self.jtagrw).readi(maxlen + max_irbits + 1, tdi=1)().next()
         if not self.checkread(ir, maxlen, "IR"):
-            raise SystemExit("Unexpectedly long instruction register: %x" % binnum(ir))
+            self.error("Unexpectedly long instruction register: %x" % binnum(ir))
         return ir
 
-    @staticmethod
-    def checkread(code, maxlen, op):
+    def checkread(self, code, maxlen, op):
         mask = (1 << maxlen) - 1
         value = code & mask
         if not code:
-            raise SystemExit("JTAG chain stuck at 0 (%s)" % op)
+            self.error("JTAG chain stuck at 0 (%s)" % op)
         if value == mask:
-            raise SystemExit("JTAG chain stuck at 1 (%s)" % op)
+            self.error("JTAG chain stuck at 1 (%s)" % op)
         return not (code >> maxlen)
 
     def find_ids(self, idcodes):
@@ -92,9 +94,9 @@ class Chain(list):
                 devices.append(idcodes & mask)
                 idcodes >>= codelen
             if not idcodes:
-                raise SystemExit("Internal Error: idstring too short")
+                self.error("Internal Error: idstring too short")
         if not devices:
-            raise SystemExit('Empty JTAG chain -- data')
+            self.error("Empty JTAG chain -- data")
         return devices
 
     def find_ilengths(self, ir):
@@ -103,11 +105,11 @@ class Chain(list):
         ones = [x for (x,y) in enumerate(reversed(istring)) if y == '1']
         total = ones.pop()
         if not ones:
-            raise SystemExit("Empty JTAG chain -- instruction")
+            self.error("Empty JTAG chain -- instruction")
         if ones[0]:
-            raise SystemExit("Illegal last device in chain: %s" % istring)
+            self.error("Illegal last device in chain: %s" % istring)
         if len(ones) < numdevs:
-            raise SystemExit("Broken instruction register: expected %d devices, got:\n    %s" % (numdevs, istring))
+            self.error("Broken instruction register: expected %d devices, got:\n    %s" % (numdevs, istring))
         if numdevs == 1:
             return [(total,)]
         combinations = itertools.combinations(ones[1:], numdevs-1)
