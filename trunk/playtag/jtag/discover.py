@@ -45,6 +45,7 @@ class Chain(list):
         icapture, = icapture
         self.updateparts(icapture)
         self.reverse()
+        self.add_bypass_info()
 
     def repeat_read(self, func, info):
         readset = set(func() for i in range(self.repeat_count))
@@ -165,6 +166,22 @@ class Chain(list):
             if capture in part.possible_ir:
                 continue
             print "Warning: Expected IR capture of %s for part at JTAG chain index %d:\n    %s" % (oldstr, index, str(part))
+
+    def add_bypass_info(self):
+        ''' Decorate each part with information about its location in the chain.
+        '''
+        BypassInfo = collections.namedtuple('BypassInfo', 'prev_ir prev_dr next_ir next_dr')
+        prev_ir = 0
+        prev_dr = 0
+        next_ir = len(''.join(part.ir_capture for part in self))
+        next_dr = len(self)
+        for part in self:
+            my_irlen = len(part.ir_capture)
+            next_ir -= my_irlen
+            next_dr -= 1
+            part.bypass_info = BypassInfo(prev_ir * '1', prev_dr * '0', next_ir * '1', next_dr * '0')
+            prev_ir += my_irlen
+            prev_dr += 1
 
     def __str__(self):
         result = ['', 'JTAG Chain information', '']

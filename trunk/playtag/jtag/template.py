@@ -29,17 +29,29 @@ class JtagTemplate(iotemplate.IOTemplate):
     # Get the jtag state vars from the states module
     vars().update(vars(jtagstates))
 
-    def protocol_init(self, proto_info):
+    def protocol_init(self, bypass_info):
         ''' Called by __init__.  Sets up protocol-specific instance info.
         '''
         self.states = [self.unknown]
+        bypass_dict = {}
+        self.bypass_info = bypass_dict.get
+        if bypass_info:
+            bypass_dict[self.shift_ir] = bypass_info.next_ir, bypass_info.prev_ir
+            bypass_dict[self.shift_dr] = bypass_info.next_dr, bypass_info.prev_dr
 
     def protocol_copy(self, new):
         ''' Called by self.copy().  Copy our protocol
             specific stuff to new object.
         '''
         new.states = list(self.states)
+        new.bypass_info = self.bypass_info
         return new
+
+    def protocol_loop(self, prev):
+        ''' To be overridden by protocol-specific subclass
+        '''
+        prev.states = [self.states[-1]]
+        prev.bypass_info = self.bypass_info
 
     def protocol_add(self, other):
         ''' Called when adding two instances together.
@@ -50,6 +62,7 @@ class JtagTemplate(iotemplate.IOTemplate):
         assert states[-1][ostates[1]] == ostates[0][ostates[1]], (
             "Mismatched state transitions on add:  %s -> %s not same TMS values as %s -> %s" %
             (states[-1], ostates[1], ostates[0], ostates[1]))
+        assert self.bypass_info is other.bypass_info, (self.bypass_info, other.bypass_info)
         states.extend(ostates[1:])
         return self
 
@@ -83,7 +96,7 @@ class JtagTemplate(iotemplate.IOTemplate):
         tmslen = len(tmslist)
         states = self.states
         oldstate = states[-1]
-        if isinstance(state, str) and state.isdigit() and tdi is None:
+        if isinstance(state, str) and state.isdigit() and tdi is defaultvar:
             tdi = state
             state = len(tdi)
         if isinstance(state, int):
@@ -94,7 +107,7 @@ class JtagTemplate(iotemplate.IOTemplate):
                 tmslist[-1] ^= 1
                 states.append(oldstate[tmslist[-1]])
         else:
-            assert adv is None
+            assert adv is None, state
             newtms = oldstate[state]
             states.append(state)
             tmslist.extend(newtms)
@@ -108,37 +121,35 @@ class JtagTemplate(iotemplate.IOTemplate):
             self.prevread = tmslen
         return self
 
-    def enter_state(self, state):
-        ''' Use update to go to a state if we are not already there.
-        '''
+    def readwrite(self, state, numbits, tdi, adv, read):
+        prefix, suffix = self.bypass_info(state, ('', ''))
         if self.states[-1] != state:
             self.update(state)
-        return self
-
-    def exit_state(self, adv):
-        ''' Use update to exit the state to the select_dr state.
-            Will probably change later to add other options.
-        '''
+            if prefix:
+                self.update(prefix)
+        self.update(numbits, tdi, adv and not suffix, read)
         if adv:
+            if suffix:
+                self.update(suffix, adv=True)
             self.update(self.select_dr)
         return self
 
     def writei(self, numbits, tdi=defaultvar, adv=True):
         ''' Write to the JTAG instruction register
         '''
-        return self.enter_state(self.shift_ir).update(numbits, tdi, adv).exit_state(adv)
+        return self.readwrite(self.shift_ir, numbits, tdi, adv, False)
 
     def writed(self, numbits, tdi=defaultvar, adv=True):
         ''' Write to the JTAG data register
         '''
-        return self.enter_state(self.shift_dr).update(numbits, tdi, adv).exit_state(adv)
+        return self.readwrite(self.shift_dr, numbits, tdi, adv, False)
 
     def readi(self, numbits, adv=True, tdi=0):
         ''' Read from the JTAG instruction register
         '''
-        return self.enter_state(self.shift_ir).update(numbits, tdi, adv, True).exit_state(adv)
+        return self.readwrite(self.shift_ir, numbits, tdi, adv, True)
 
     def readd(self, numbits, adv=True, tdi=0):
         ''' Read from the JTAG data register.
         '''
-        return self.enter_state(self.shift_dr).update(numbits, tdi, adv, True).exit_state(adv)
+        return self.readwrite(self.shift_dr, numbits, tdi, adv, True)
