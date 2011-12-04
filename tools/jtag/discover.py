@@ -27,6 +27,17 @@ Valid cabletypes are the subpackages under playtag/cables:
 
 Valid cablenames and options vary by cabletype --
     type '%s <cabletype>' for a list.
+
+You can either give the name of the cable, or the index number.
+For example if you have a single digilent USB cable, you could
+type either:
+
+    discover.py digilent DCabUsb
+
+or:
+
+    discover.py digilent 0
+
 ''' % (__file__, ', '.join(sorted(cables)), __file__))
 
 if config.CABLE_DRIVER is None:
