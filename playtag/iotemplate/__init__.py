@@ -107,10 +107,14 @@ class IOTemplate(object):
         '''
         self.devtemplate = None
         prev = type(self)(self.cable)
-        prev.states = [self.states[-1]]
+        self.protocol_loop(prev)
         prev.__dict__, self.__dict__ = self.__dict__, prev.__dict__
         self.loopstack = prev
         return self
+    def protocol_loop(self, prev):
+        ''' To be overridden by protocol-specific subclass
+        '''
+        pass
 
     def endloop(self, count):
         ''' loop/endloop pairs mark a section of the template

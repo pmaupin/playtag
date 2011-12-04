@@ -34,7 +34,7 @@ class LeonPart(PartParameters):
                 self.is_leon = True
                 self.cmdi, self.datai = params[4:]
             idcode = idcode, mask
-            ir_capture = 'x' * (irlen - 1) + '01'
+            ir_capture = 'x' * (irlen - 2) + '01'
             self.base_init(idcode, ir_capture, name)
         except:
             print "\nError processing line: %s\n" + linetext
@@ -51,21 +51,22 @@ class BusDriver(dict):
     def __init__(self, jtagrw, UserConfig):
         PartInfo.addparts(LeonPart(x) for x in readfile(UserConfig.JTAGID_FILE))
         chain = Chain(jtagrw)
-        leons = [x for x in chain if hasattr(chain[0].parameters, 'is_leon')]
-        err = len(chain) != 1
-        if err or UserConfig.SHOW_CHAIN or not leons:
+        leons = [x for x in chain if hasattr(x.parameters, 'is_leon')]
+        err = len(leons) != 1
+        if err or UserConfig.SHOW_CHAIN:
             print str(chain)
             if not leons:
                 raise SystemExit("Did not find LEON3 processor in chain")
             if not chain:
                 raise SystemExit("Did not find devices in JTAG chain")
-            if len(chain) > 1:
-                raise SystemExit("Multi-device chains not yet supported")
+            if len(leons) > 1:
+                raise SystemExit("Multi-LEON3 chains not yet supported")
 
         leon = leons[0]
         self.ilength = len(leon.ir_capture)
         self.cmdi = leon.parameters.cmdi
         self.datai = leon.parameters.datai
+        self.bypass_info = leon.bypass_info
         if not self.ilength or not self.cmdi or not self.datai:
             raise SystemExit("Invalid LEON parameters")
         self.jtagrw = jtagrw
@@ -78,7 +79,7 @@ class BusDriver(dict):
         write, length, size = key
         name = '%s_%d_%d' % ('write' if write else 'read', length, size)
         data = self.data_var if write else 0
-        self[key] = cmd = JtagTemplate(self.jtagrw, name)
+        self[key] = cmd = JtagTemplate(self.jtagrw, name, self.bypass_info)
         outerloop = (length + 255) / 256
         innerloop = (length + 255) % 256
         if outerloop:

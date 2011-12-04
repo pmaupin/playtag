@@ -37,7 +37,7 @@ class UserConfig(object):
         for name, value in reversed(options):
             try:
                 value = int(value,0)
-            except TypeError:
+            except (TypeError, ValueError):
                 pass
             setattr(self, name.upper(), value)
         if usesys:
