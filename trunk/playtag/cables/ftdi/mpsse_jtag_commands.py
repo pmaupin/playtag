@@ -138,7 +138,7 @@ def do_tms(info, addwrite, addread, old_tdi):
     tdival = info[-1][1][-1]
     while info and room:
         new_tms, new_tdi, new_tdo = info[-1]
-        if new_tms[-1] == '0' and (new_tdi[-1] != '*' or len(new_tdi) >= 16):
+        if (new_tms[-1] == '0' and (new_tdi[-1] != '*' or len(new_tdi) >= 16)) and tms:
             break
         mylen = min(room, len(new_tms))
         bad_tdi = new_tdi[-mylen:].upper()  # Force mismatch on 'X'
