@@ -82,7 +82,7 @@ class LeonCfg(object):
 
     def calcram(self):
         cfgs = [x for x in (self.dcfg, self.icfg) if x.ram_size]
-        blocksize = min(x.ram_size for x in cfgs)
+        blocksize = cfgs and min(x.ram_size for x in cfgs) or 2
         blocks = {}
         asiram = self.asiram.baseaddr
         for cfg in cfgs:
