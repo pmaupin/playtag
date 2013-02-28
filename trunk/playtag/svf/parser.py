@@ -15,6 +15,17 @@ class AnyDict(dict):
     def __init__(self):
         self.__dict__ = self
 
+class DisplayableTuple(tuple):
+    def __str__(self):
+        result = []
+        for value in self:
+            if isinstance(value, basestring) and len(value) > 20:
+                value = value[:15], '...'
+            result.append(repr(value))
+        return '(%s)' % ', '.join(result)
+    def __repr__(self):
+        return str(self)
+
 class AnnotatedString(str):
     pass
 
@@ -94,7 +105,7 @@ class ParseSVF(object):
         if cmd:
             yield cmd, cmdlinenum
 
-    def __init__(self, fname=None):
+    def __init__(self, fname=None, ops=None):
         sticky = AnyDict()
         for cmd in 'SIR SDR HIR HDR TIR TDR'.split():
             cmddict = sticky[cmd] = AnyDict()
@@ -105,6 +116,11 @@ class ParseSVF(object):
         self.FREQUENCY = None
         idle = self.ENDDR = self.ENDIR = self.states.IDLE
         self.RUNSTATE = self.ENDSTATE = idle
+        for name in 'frequency trst state shift runtest'.split():
+            name = 'do_' + name
+            func = getattr(ops, name, None)
+            if func is not None:
+                setattr(self, name, func)
         if fname is not None:
             self.parse(fname)
 
@@ -158,7 +174,7 @@ class ParseSVF(object):
                 data = unhexlify(''.join(data))
             except  TypeError:
                 raise SvfError('Invalid (<hex data>) for parameter %s' % param)
-            mydict[param] = length, data
+            mydict[param] = DisplayableTuple((length, data))
 
     def cmd_runtest(self, cmd, iterparams):
         use_sck = False
@@ -211,11 +227,16 @@ class ParseSVF(object):
                 do_end = True
             else:
                 prev_num = param
-        self.do_runtest(numclocks, use_sck, secs)
+        self.do_runtest(numclocks, use_sck, secs, self.RUNSTATE, self.ENDSTATE)
 
     def cmd_shift(self, cmd, iterparams):
         self.cmd_reg(cmd, iterparams)
-        self.do_shift(cmd)
+        assert cmd in ('SIR', 'SDR')
+        header = 'H' + cmd[1:]
+        trailer = 'T' + cmd[1:]
+        sticky = self.sticky
+        endstate = getattr(self, 'END%sR' % cmd[1])
+        self.do_shift(cmd, sticky[header], sticky[cmd], sticky[trailer], endstate)
 
     def cmd_state(self, cmd, iterparams):
         statelist = []
@@ -263,15 +284,20 @@ class ParseSVF(object):
 
 if dotest:
     fname, = sys.argv[1:]
-    class MyParser(ParseSVF):
-        def do_frequency(self, value):
-            print "FREQUENCY", value
-        def do_trst(self, value):
-            print "TRST", value
-        def do_state(self, value):
-            print "STATE", value
-        def do_shift(self, cmd):
-            print "SHIFT", cmd
+    class MyOps(object):
+        def do_frequency(self, *what):
+            print "FREQUENCY", what
+            print
+        def do_trst(self, *what):
+            print "TRST", what
+            print
+        def do_state(self, *what):
+            print "STATE", what
+            print
+        def do_shift(self, *what):
+            print "SHIFT", what
+            print
         def do_runtest(self, *what):
             print "RUNTEST", what
-    MyParser(fname)
+            print
+    ParseSVF(fname, MyOps())
