@@ -105,7 +105,7 @@ class ParseSVF(object):
         if cmd:
             yield cmd, cmdlinenum
 
-    def __init__(self, fname=None, ops=None):
+    def __init__(self):
         sticky = AnyDict()
         for cmd in 'SIR SDR HIR HDR TIR TDR'.split():
             cmddict = sticky[cmd] = AnyDict()
@@ -116,13 +116,6 @@ class ParseSVF(object):
         self.FREQUENCY = None
         idle = self.ENDDR = self.ENDIR = self.states.IDLE
         self.RUNSTATE = self.ENDSTATE = idle
-        for name in 'frequency trst state shift runtest'.split():
-            name = 'do_' + name
-            func = getattr(ops, name, None)
-            if func is not None:
-                setattr(self, name, func)
-        if fname is not None:
-            self.parse(fname)
 
     def cmd_enddrir(self, cmd, iterparams):
         for state in iterparams:
@@ -146,7 +139,7 @@ class ParseSVF(object):
             if tokcount != 1 or hz != 'HZ':
                 raise SvfError('Unexpected text after frequency')
         self.FREQUENCY = freq
-        self.do_frequency(freq)
+        return 'FREQUENCY', freq
 
     def cmd_reg(self, cmd, iterparams):
         mydict = self.sticky[cmd]
@@ -227,7 +220,7 @@ class ParseSVF(object):
                 do_end = True
             else:
                 prev_num = param
-        self.do_runtest(numclocks, use_sck, secs, self.RUNSTATE, self.ENDSTATE)
+        return 'RUNTEST', (numclocks, use_sck, secs, self.RUNSTATE, self.ENDSTATE)
 
     def cmd_shift(self, cmd, iterparams):
         self.cmd_reg(cmd, iterparams)
@@ -236,7 +229,7 @@ class ParseSVF(object):
         trailer = 'T' + cmd[1:]
         sticky = self.sticky
         endstate = getattr(self, 'END%sR' % cmd[1])
-        self.do_shift(cmd, sticky[header], sticky[cmd], sticky[trailer], endstate)
+        return 'SHIFT', (cmd, sticky[header], sticky[cmd], sticky[trailer], endstate)
 
     def cmd_state(self, cmd, iterparams):
         statelist = []
@@ -248,7 +241,7 @@ class ParseSVF(object):
             statelist.append(s)
         if state not in self.stable:
             raise SvfError('%s is not a stable state' % state)
-        self.do_state(statelist)
+        return 'STATE', statelist
 
     def cmd_trst(self, cmd, iterparams):
         try:
@@ -258,7 +251,7 @@ class ParseSVF(object):
         value = self.valid_trst[param]
         if value is None:
             raise SvfError('%s is not a valid TRST value' % param)
-        self.do_trst(value)
+        return 'TRST', value
 
     cmds = dict(ENDIR=cmd_enddrir, ENDDR=cmd_enddrir, FREQUENCY=cmd_frequency,
                 HDR=cmd_reg, HIR=cmd_reg, TDR=cmd_reg, TIR=cmd_reg,
@@ -277,27 +270,14 @@ class ParseSVF(object):
                 cmdproc = getproc(cmd)
                 if cmdproc is None:
                     raise SvfError('Unknown command')
-                cmdproc(self, cmd, iterparams)
+                value = cmdproc(self, cmd, iterparams)
+                if value is not None:
+                    yield (linenum,) + value
         except SvfError, m:
             raise SvfError("Error in line %s of file %s:\n   Command %s: %s" %
                 (linenum, fname, cmd, m.message))
 
 if dotest:
     fname, = sys.argv[1:]
-    class MyOps(object):
-        def do_frequency(self, *what):
-            print "FREQUENCY", what
-            print
-        def do_trst(self, *what):
-            print "TRST", what
-            print
-        def do_state(self, *what):
-            print "STATE", what
-            print
-        def do_shift(self, *what):
-            print "SHIFT", what
-            print
-        def do_runtest(self, *what):
-            print "RUNTEST", what
-            print
-    ParseSVF(fname, MyOps())
+    for linenum, op, params in ParseSVF().parse(fname):
+        print linenum, op, params
