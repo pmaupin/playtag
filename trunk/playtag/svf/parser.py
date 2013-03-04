@@ -1,8 +1,17 @@
 #! /usr/bin/env python
 
+'''
+This module contains a parser for SVF commands.  Initial version
+does not support PIOMAPs.
+
+Copyright (C) 2013 by Patrick Maupin.  All rights reserved.
+License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+'''
+
 import re
 import zipfile
 from binascii import unhexlify
+from collections import namedtuple
 
 dotest = __name__ == '__main__'
 if dotest:
@@ -11,28 +20,47 @@ if dotest:
 
 from playtag.jtag.states import states as jtagstates
 
-class AnyDict(dict):
-    def __init__(self):
-        self.__dict__ = self
-
-class DisplayableTuple(tuple):
-    def __str__(self):
-        result = []
-        for value in self:
-            if isinstance(value, basestring) and len(value) > 20:
-                value = value[:15], '...'
-            result.append(repr(value))
-        return '(%s)' % ', '.join(result)
-    def __repr__(self):
-        return str(self)
-
-class AnnotatedString(str):
-    pass
-
 class SvfError(Exception):
     pass
 
 class ParseSVF(object):
+    ''' ParseSVF is a parser class.  An instantiation of this
+        has a parse() method, that can be used to iterate over
+        a SVF file.  The SVF file may be stored in a zip archive
+        as long as it is the only SVF file in the archive.
+
+        The parse method returns an iterable that will iterate
+        over all the records in the SVF file that require external
+        action.  These records can be used as-is, and/or the class
+        may be subclassed to replace the default named-tuple returned
+        for each action.
+    '''
+
+    class AnyDict(dict):
+        '''  Silly little generic access class
+        '''
+        def __init__(self):
+            self.__dict__ = self
+
+    class DisplayableTuple(tuple):
+        ''' DisplayableTuple is just used to
+            make strings short enough to look at on
+            the screen for debugging.  Otherwise,
+            it's just a tuple.
+        '''
+        def __str__(self):
+            result = []
+            for value in self:
+                if isinstance(value, basestring) and len(value) > 20:
+                    value = value[:15], '...'
+                result.append(repr(value))
+            return '(%s)' % ', '.join(result)
+        def __repr__(self):
+            return str(self)
+
+    class AnnotatedString(str):
+        pass
+
 
     hexdata_text = '(<hexdata>)'
     timing = dict(TCK=0, SCK=1, SEC=2)
@@ -47,6 +75,11 @@ class ParseSVF(object):
 
     @staticmethod
     def fileiter(fname):
+        '''  Iterate over a file, or a file inside a zip file.
+             If inside a zip file, the zip file name must end
+             in .zip, and the name of the compressed file mus
+             end in .svf.  Filenames are case-insensitive.
+        '''
         if not fname.lower().endswith('.zip'):
             return open(fname, 'rb')
         zipf = zipfile.ZipFile(fname, 'r')
@@ -58,6 +91,8 @@ class ParseSVF(object):
 
     @staticmethod
     def gettokens(lines):
+        '''  Split an SVF file into its constituent tokens
+        '''
         re_expr = r'(//.*|\!.*|[a-zA-Z0-9.+-]+|\S)'
         split = re.compile(re_expr).split
         join = ''.join
@@ -77,6 +112,8 @@ class ParseSVF(object):
 
     @classmethod
     def getcmds(cls, tokens):
+        '''  Given tokens, split an SVF file into commands
+        '''
         cmd = []
         cmdlinenum = 0
         for token, linenum in tokens:
@@ -97,7 +134,7 @@ class ParseSVF(object):
                             raise SvfError(
                                 'Missing ")" in command %s on line %s',
                                 repr(cmd[0]), cmdlinenum)
-                        ch = AnnotatedString(cls.hexdata_text)
+                        ch = cls.AnnotatedString(cls.hexdata_text)
                         ch.values = subcmd
                         cmd.append(ch)
                         break
@@ -106,9 +143,13 @@ class ParseSVF(object):
             yield cmd, cmdlinenum
 
     def __init__(self):
-        sticky = AnyDict()
+        ''' SVF files maintain state for the header, trailer
+            starting and ending JTAG states, etc.  Initialize all
+            this.
+        '''
+        sticky = self.AnyDict()
         for cmd in 'SIR SDR HIR HDR TIR TDR'.split():
-            cmddict = sticky[cmd] = AnyDict()
+            cmddict = sticky[cmd] = self.AnyDict()
             cmddict.length = 0
             for param in self.paramtypes:
                 cmddict[param] = self.nodata
@@ -117,7 +158,7 @@ class ParseSVF(object):
         idle = self.ENDDR = self.ENDIR = self.states.IDLE
         self.RUNSTATE = self.ENDSTATE = idle
 
-    def cmd_enddrir(self, cmd, iterparams):
+    def cmd_enddrir(self, cmd, iterparams, linenum):
         for state in iterparams:
             if state not in self.stable:
                 raise SvfError('%s is not a valid SVF stable state' % state)
@@ -125,7 +166,8 @@ class ParseSVF(object):
                 raise SvfError("Expected single state parameter")
         setattr(self, cmd, self.states[state])
 
-    def cmd_frequency(self, cmd, iterparams):
+
+    def cmd_frequency(self, cmd, iterparams, linenum):
         freq = None
         for freq in iterparams:
             try:
@@ -139,9 +181,10 @@ class ParseSVF(object):
             if tokcount != 1 or hz != 'HZ':
                 raise SvfError('Unexpected text after frequency')
         self.FREQUENCY = freq
-        return 'FREQUENCY', freq
+        return self.Frequency(freq, linenum)
+    Frequency = namedtuple('Frequency', 'freq, linenum')
 
-    def cmd_reg(self, cmd, iterparams):
+    def cmd_reg(self, cmd, iterparams, linenum):
         mydict = self.sticky[cmd]
         try:
             length = mydict.length = int(iterparams.next())
@@ -167,9 +210,10 @@ class ParseSVF(object):
                 data = unhexlify(''.join(data))
             except  TypeError:
                 raise SvfError('Invalid (<hex data>) for parameter %s' % param)
-            mydict[param] = DisplayableTuple((length, data))
+            mydict[param] = self.DisplayableTuple((length, data))
 
-    def cmd_runtest(self, cmd, iterparams):
+
+    def cmd_runtest(self, cmd, iterparams, linenum):
         use_sck = False
         secs = [None, None]
         numclocks = None
@@ -220,18 +264,20 @@ class ParseSVF(object):
                 do_end = True
             else:
                 prev_num = param
-        return 'RUNTEST', (numclocks, use_sck, secs, self.RUNSTATE, self.ENDSTATE)
+        return self.RunTest(numclocks, use_sck, secs, self.RUNSTATE, self.ENDSTATE, linenum)
+    RunTest = namedtuple('RunTest', 'numclocks, use_sck, secs, runstate, endstate, linenum')
 
-    def cmd_shift(self, cmd, iterparams):
-        self.cmd_reg(cmd, iterparams)
+    def cmd_shift(self, cmd, iterparams, linenum):
+        self.cmd_reg(cmd, iterparams, linenum)
         assert cmd in ('SIR', 'SDR')
         header = 'H' + cmd[1:]
         trailer = 'T' + cmd[1:]
         sticky = self.sticky
         endstate = getattr(self, 'END%sR' % cmd[1])
-        return 'SHIFT', (cmd, sticky[header], sticky[cmd], sticky[trailer], endstate)
+        return self.Shift(cmd, sticky[header], sticky[cmd], sticky[trailer], endstate, linenum)
+    Shift = namedtuple('Shift', 'cmd, header, data, trailer, endstate, linenum')
 
-    def cmd_state(self, cmd, iterparams):
+    def cmd_state(self, cmd, iterparams, linenum):
         statelist = []
         getstate = self.states.get
         for state in iterparams:
@@ -241,9 +287,10 @@ class ParseSVF(object):
             statelist.append(s)
         if state not in self.stable:
             raise SvfError('%s is not a stable state' % state)
-        return 'STATE', statelist
+        return self.State(statelist, linenum)
+    State = namedtuple('State', 'statelist, linenum')
 
-    def cmd_trst(self, cmd, iterparams):
+    def cmd_trst(self, cmd, iterparams, linenum):
         try:
             param, = iterparams
         except ValueError:
@@ -251,7 +298,8 @@ class ParseSVF(object):
         value = self.valid_trst[param]
         if value is None:
             raise SvfError('%s is not a valid TRST value' % param)
-        return 'TRST', value
+        return self.Trst(value, linenum)
+    Trst = namedtuple('TRST', 'value, linenum')
 
     cmds = dict(ENDIR=cmd_enddrir, ENDDR=cmd_enddrir, FREQUENCY=cmd_frequency,
                 HDR=cmd_reg, HIR=cmd_reg, TDR=cmd_reg, TIR=cmd_reg,
@@ -259,10 +307,10 @@ class ParseSVF(object):
                 STATE=cmd_state, TRST=cmd_trst)
 
     def parse(self, fname):
-        getproc = self.cmds.get
         myiter = self.fileiter(fname)
         myiter = self.gettokens(myiter)
         myiter = self.getcmds(myiter)
+        getproc = self.cmds.get
         try:
             for params, linenum in myiter:
                 iterparams = iter(params)
@@ -270,14 +318,15 @@ class ParseSVF(object):
                 cmdproc = getproc(cmd)
                 if cmdproc is None:
                     raise SvfError('Unknown command')
-                value = cmdproc(self, cmd, iterparams)
+                value = cmdproc(self, cmd, iterparams, linenum)
                 if value is not None:
-                    yield (linenum,) + value
+                    yield value
         except SvfError, m:
             raise SvfError("Error in line %s of file %s:\n   Command %s: %s" %
                 (linenum, fname, cmd, m.message))
 
 if dotest:
     fname, = sys.argv[1:]
-    for linenum, op, params in ParseSVF().parse(fname):
-        print linenum, op, params
+    for stuff in ParseSVF().parse(fname):
+        print stuff
+        print
