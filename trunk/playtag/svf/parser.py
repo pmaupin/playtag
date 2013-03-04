@@ -71,7 +71,7 @@ class ParseSVF(object):
         states[''.join(reversed(x.split('_'))).upper()] = y
     del x, y
     stable = set('IRPAUSE DRPAUSE RESET IDLE'.split())
-    valid_trst = dict(ON=1, OFF=0, Z=2, ABSENT=3)
+    valid_trst = dict(ON=0, OFF=1, Z=2, ABSENT=3)
 
     @staticmethod
     def fileiter(fname):
@@ -157,6 +157,7 @@ class ParseSVF(object):
         self.FREQUENCY = None
         idle = self.ENDDR = self.ENDIR = self.states.IDLE
         self.RUNSTATE = self.ENDSTATE = idle
+        self.CURSTATE = self.states.UNKNOWN
 
     def cmd_enddrir(self, cmd, iterparams, linenum):
         for state in iterparams:
@@ -264,18 +265,22 @@ class ParseSVF(object):
                 do_end = True
             else:
                 prev_num = param
-        return self.RunTest(numclocks, use_sck, secs, self.RUNSTATE, self.ENDSTATE, linenum)
-    RunTest = namedtuple('RunTest', 'numclocks, use_sck, secs, runstate, endstate, linenum')
+        prevstate, self.CURSTATE = self.CURSTATE, self.ENDSTATE
+        return self.RunTest(numclocks, use_sck, secs, prevstate, self.RUNSTATE, self.ENDSTATE, linenum)
+    RunTest = namedtuple('RunTest', 'numclocks, use_sck, secs, prevstate, runstate, endstate, linenum')
 
     def cmd_shift(self, cmd, iterparams, linenum):
         self.cmd_reg(cmd, iterparams, linenum)
         assert cmd in ('SIR', 'SDR')
-        header = 'H' + cmd[1:]
-        trailer = 'T' + cmd[1:]
+        which = cmd[1]
+        header = 'H%sR' % which
+        trailer = 'T%sR' % which
         sticky = self.sticky
-        endstate = getattr(self, 'END%sR' % cmd[1])
-        return self.Shift(cmd, sticky[header], sticky[cmd], sticky[trailer], endstate, linenum)
-    Shift = namedtuple('Shift', 'cmd, header, data, trailer, endstate, linenum')
+        endstate = getattr(self, 'END%sR' % which)
+        state = self.states[which + 'RSHIFT']
+        prevstate, self.CURSTATE = self.CURSTATE, endstate
+        return self.Shift(prevstate, state, endstate, sticky[header], sticky[cmd], sticky[trailer], linenum)
+    Shift = namedtuple('Shift', 'prevstate, state, endstate, header, data, trailer, linenum')
 
     def cmd_state(self, cmd, iterparams, linenum):
         statelist = []
@@ -287,8 +292,9 @@ class ParseSVF(object):
             statelist.append(s)
         if state not in self.stable:
             raise SvfError('%s is not a stable state' % state)
-        return self.State(statelist, linenum)
-    State = namedtuple('State', 'statelist, linenum')
+        prevstate, self.CURSTATE = self.CURSTATE, statelist[-1]
+        return self.State(prevstate, statelist, linenum)
+    State = namedtuple('State', 'prevstate, statelist, linenum')
 
     def cmd_trst(self, cmd, iterparams, linenum):
         try:
@@ -298,6 +304,8 @@ class ParseSVF(object):
         value = self.valid_trst[param]
         if value is None:
             raise SvfError('%s is not a valid TRST value' % param)
+        if not value:
+            self.CURSTATE = self.states.RESET
         return self.Trst(value, linenum)
     Trst = namedtuple('TRST', 'value, linenum')
 
