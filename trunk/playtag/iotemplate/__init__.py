@@ -27,6 +27,17 @@ License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 '''
 
 class TDIVariable(object):
+    ''' TDIVariable is a place-holder for TDI bits that are supplied
+        later (allowing us to make reusable templates).
+
+        The index is used to determine which data stream to use
+        to supply the variable data.  It defaults to stream 0.
+
+        For example, the LEON client's jtag_ahb module uses
+        stream 0 for processor addresses and stream 1 for processor
+        data.  The actual streams are passed as parameters to the
+        __call__ function of an IOTemplate instance.
+    '''
     def __init__(self, index=0):
         self.index = index
 
