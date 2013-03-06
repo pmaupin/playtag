@@ -10,7 +10,6 @@ License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
 
 import re
 import zipfile
-from binascii import unhexlify
 from collections import namedtuple
 
 dotest = __name__ == '__main__'
@@ -42,19 +41,16 @@ class ParseSVF(object):
         def __init__(self):
             self.__dict__ = self
 
-    class DisplayableTuple(tuple):
-        ''' DisplayableTuple is just used to
-            make strings short enough to look at on
-            the screen for debugging.  Otherwise,
-            it's just a tuple.
-        '''
+    class TDIData(object):
+        def __init__(self, length, data, linenum):
+            self.length = length
+            self.linenum = linenum
+            self.data = data
         def __str__(self):
-            result = []
-            for value in self:
-                if isinstance(value, basestring) and len(value) > 20:
-                    value = value[:15], '...'
-                result.append(repr(value))
-            return '(%s)' % ', '.join(result)
+            multiple = len(self.data) > 1
+            return '(length=%s data=%s%s)' % (self.length,
+                     self.data and self.data[0],
+                        multiple and ', ...' or '')
         def __repr__(self):
             return str(self)
 
@@ -65,7 +61,7 @@ class ParseSVF(object):
     hexdata_text = '(<hexdata>)'
     timing = dict(TCK=0, SCK=1, SEC=2)
     paramtypes = 'MASK SMASK TDI TDO'.split()
-    nodata = 0, ''
+    nodata = TDIData(0, [], 0)
     states = AnyDict()
     for (x,y) in vars(jtagstates).iteritems():
         states[''.join(reversed(x.split('_'))).upper()] = y
@@ -192,7 +188,7 @@ class ParseSVF(object):
         except:
             raise SvfError('Missing or invalid bit count')
         for p in self.paramtypes:
-            plen = mydict[p][0]
+            plen = mydict[p].length
             if plen and plen != length:
                 mydict[p] = self.nodata
         for param in iterparams:
@@ -204,14 +200,7 @@ class ParseSVF(object):
                 data = ''
             if data != self.hexdata_text:
                 raise SvfError("Expected (<hex data>) after parameter %s" % param)
-            data = data.values
-            if sum(len(x) for x in data) & 1:
-                data.insert(0, '0')
-            try:
-                data = unhexlify(''.join(data))
-            except  TypeError:
-                raise SvfError('Invalid (<hex data>) for parameter %s' % param)
-            mydict[param] = self.DisplayableTuple((length, data))
+            mydict[param] = self.TDIData(length, data.values, linenum)
 
 
     def cmd_runtest(self, cmd, iterparams, linenum):
@@ -334,7 +323,10 @@ class ParseSVF(object):
                 (linenum, fname, cmd, m.message))
 
 if dotest:
+    from time import time
+    starttime = time()
     fname, = sys.argv[1:]
     for stuff in ParseSVF().parse(fname):
         print stuff
         print
+    print time() - starttime
