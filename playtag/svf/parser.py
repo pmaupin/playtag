@@ -41,11 +41,13 @@ class ParseSVF(object):
         def __init__(self):
             self.__dict__ = self
 
-    class TDIData(object):
-        def __init__(self, length, data, linenum):
+    class DataStream(object):
+        ''' Keep information about TDI/TDO data or mask.
+        '''
+        def __init__(self, linenum=0, length=0, data=None):
             self.length = length
             self.linenum = linenum
-            self.data = data
+            self.data = data or []
         def __str__(self):
             multiple = len(self.data) > 1
             return '(length=%s data=%s%s)' % (self.length,
@@ -54,14 +56,10 @@ class ParseSVF(object):
         def __repr__(self):
             return str(self)
 
-    class AnnotatedString(str):
-        pass
 
-
-    hexdata_text = '(<hexdata>)'
     timing = dict(TCK=0, SCK=1, SEC=2)
     paramtypes = 'MASK SMASK TDI TDO'.split()
-    nodata = TDIData(0, [], 0)
+    nodata = DataStream()
     states = AnyDict()
     for (x,y) in vars(jtagstates).iteritems():
         states[''.join(reversed(x.split('_'))).upper()] = y
@@ -130,9 +128,7 @@ class ParseSVF(object):
                             raise SvfError(
                                 'Missing ")" in command %s on line %s',
                                 repr(cmd[0]), cmdlinenum)
-                        ch = cls.AnnotatedString(cls.hexdata_text)
-                        ch.values = subcmd
-                        cmd.append(ch)
+                        cmd.append(cls.DataStream(linenum=cmdlinenum, data=subcmd))
                         break
                     subcmd.append(token)
         if cmd:
@@ -198,9 +194,10 @@ class ParseSVF(object):
                 data = iterparams.next()
             except StopIteration:
                 data = ''
-            if data != self.hexdata_text:
+            if not isinstance(data, self.DataStream):
                 raise SvfError("Expected (<hex data>) after parameter %s" % param)
-            mydict[param] = self.TDIData(length, data.values, linenum)
+            data.length = length
+            mydict[param] = data
 
 
     def cmd_runtest(self, cmd, iterparams, linenum):
