@@ -178,7 +178,7 @@ class FtdiDevice(FT):
                 self.write_gpio(0xFFFF)
                 self.synchronize()
             finally:
-                self.Close(self)
+                self.Close()
 
 if test:
     print str(info)
