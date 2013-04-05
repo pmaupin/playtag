@@ -2,7 +2,7 @@
 import time
 import atexit
 from collections import defaultdict
-from d2xx_wrapper import FT
+from d2xx_wrapper import FT, windows
 from mpsse_commands import Commands
 
 test = __name__ == '__main__'
@@ -92,7 +92,8 @@ class FtdiDevice(FT):
 
         # Sequence taken from app note 129.
         #self.ResetPort()   # Does this reset both channels?
-        self.Purge(self.PURGE_RX | self.PURGE_TX)
+        if windows:  # Broken in Linux driver libftd2xx.so.1.1.12
+            self.Purge(self.PURGE_RX | self.PURGE_TX)
         self.SetUSBParameters(UserConfig.FTDI_USB_IN_SIZE, UserConfig.FTDI_USB_OUT_SIZE)
         self.SetChars(0, 0, 0, 0)
         self.SetTimeouts(UserConfig.FTDI_READ_TIMEOUT, UserConfig.FTDI_WRITE_TIMEOUT)
@@ -164,7 +165,8 @@ class FtdiDevice(FT):
     def synchronize(self):
         ''' Write an invalid command and check the pattern coming back
         '''
-        self.Purge(self.PURGE_RX | self.PURGE_TX)
+        if windows:  # Broken in Linux driver libftd2xx.so.1.1.12
+            self.Purge(self.PURGE_RX | self.PURGE_TX)
         self.writebytes( 0xAA) # Invalid command
         if self.readbytes(2) != [0xFA, 0xAA]:
             raise SystemExit("Error synchronizing FTDI driver")
@@ -174,7 +176,7 @@ class FtdiDevice(FT):
         if self.isopen:
             self.isopen = False
             try:
-                self.set_gpio_mask(0xFFFF)
+                self.set_gpio_mask(0x0)
                 self.write_gpio(0xFFFF)
                 self.synchronize()
             finally:
