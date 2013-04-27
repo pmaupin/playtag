@@ -6,6 +6,8 @@ Simplistic chain discovery
 import sys
 import os
 
+os_cmd = sys.argv[0]
+
 root = os.path.join(os.path.dirname(__file__), '../..')
 sys.path.insert(0, root)
 
@@ -32,13 +34,13 @@ You can either give the name of the cable, or the index number.
 For example if you have a single digilent USB cable, you could
 type either:
 
-    discover.py digilent DCabUsb
+    %s digilent DCabUsb
 
 or:
 
-    discover.py digilent 0
+    %s digilent 0
 
-''' % (__file__, ', '.join(sorted(cables)), __file__))
+''' % (os_cmd, ', '.join(sorted(cables)), os_cmd, os_cmd, os_cmd))
 
 if config.CABLE_DRIVER is None:
     showtypes()

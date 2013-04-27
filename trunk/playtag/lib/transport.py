@@ -55,7 +55,7 @@ def socketrw(socket, logger=None, readsize=2048):
                 logdata = "%s..." % repr(logdata[:40])
             else:
                 logdata = repr(logdata)
-            logger("Sending %s%s" % (packetize and 'packet ' or '', logdata))
+            logger("Sending %s%s\n" % (packetize and 'packet ' or '', logdata))
         if packetize is not None:
             data = packetize(data)
         while data:
@@ -63,7 +63,7 @@ def socketrw(socket, logger=None, readsize=2048):
 
     return read, write
 
-def connection(cmdprocess, procname, address, run=True, logpackets=True, logger=logger):
+def connection(cmdprocess, procname, address, run=True, logpackets=True, logger=logger, readsize=2048):
 
     class RequestHandler(SocketServer.BaseRequestHandler):
         def setup(self):
@@ -76,7 +76,7 @@ def connection(cmdprocess, procname, address, run=True, logpackets=True, logger=
                 ((procname,) + self.server.server_address))
 
         def handle(self):
-            read, write = socketrw(self.request, logpackets and logger or None)
+            read, write = socketrw(self.request, logpackets and logger or None, readsize)
             cmdprocess(read, write)
 
     server = SocketServer.TCPServer(('', address), RequestHandler)

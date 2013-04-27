@@ -68,7 +68,7 @@ class BaseXString(object):
             being used.
         '''
         self.tdo_bits = [x[1] for x in tdo_template]
-        self.tdo_bits.reverse()
+        #self.tdo_bits.reverse() # Check later if works right with Digilent
         if not tdo_template:
             self.tdo_xstring = self.transaction_bit_length * '*'
             return
