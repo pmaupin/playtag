@@ -1,12 +1,19 @@
 #! /usr/bin/env python
 import sys
+import os
 import ctypes
 from types import MethodType
 
 windows = 'win' in sys.platform
 
-libfile = 'ftd2xx' if windows else '/usr/lib/libftd2xx.so'
-loader = ctypes.WinDLL if windows else ctypes.CDLL
+if windows:
+    libfile = 'ftd2xx'
+    loader = ctypes.WinDLL
+else:
+    libfile = '/usr/lib/libftd2xx.so'
+    loader = ctypes.CDLL
+    if not os.path.exists(libfile):
+        libfile = os.path.join(os.path.dirname(__file__), 'libftd2xx.so')
 
 loaded = True
 try:
