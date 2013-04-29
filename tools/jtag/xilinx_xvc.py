@@ -1,10 +1,8 @@
 #! /usr/bin/env python
-import array
-import time
+import ctypes
 from discover import driver
 from playtag.lib.transport import connection
 from playtag.iotemplate import IOTemplate, TDIVariable
-from playtag.jtag.states import states as jtagstates
 
 '''
 This program builds on the discover module.  After the cable
@@ -20,57 +18,73 @@ text in the dialog below there:
 
 xilinx_xvc host=localhost:2542 disableversioncheck=true
 
-
-
+Because the Xilinx tools themselves already know about the
+JTAG protocol, this code plays dumb.  If the issue discussed
+in that first website crops up with current versions of Xilinx
+tools, then we can modify the code to fix the Xilinx bug.
 '''
 
-def cmdproc(read, write):
-    tmsbuf = ['{0:08b}'.format(x)[-1::-1] for x in range(256)]
+def getcmdinfo(data, constlen, tdivar=TDIVariable()):
+    numbytes = len(data) - constlen
+
+    class CmdStruct(ctypes.LittleEndianStructure):
+        _pack_ = 1
+        _fields_ = (
+                ("cmdstr",   ctypes.c_char * 6),
+                ("numbits",  ctypes.c_uint32),
+                ("tmsbytes", ctypes.c_uint8 * numbytes),
+        )
+
+    class TdioStruct(ctypes.LittleEndianStructure):
+        _pack_ = 1
+        _fields_ = (
+                ("data",    (numbytes + 7) / 8 * ctypes.c_uint64),
+        )
+
+    cmdinfo = CmdStruct.from_buffer_copy(data)
+    numbits = cmdinfo.numbits
+    tmsbuf = cmdinfo.tmsbytes
+    bitmap = [min(numbits-i, 64) for i in range(0, numbits, 64)]
+
+    assert cmdinfo.cmdstr == 'shift:', cmdinfo.cmdstr
+    assert (numbits + 7) // 8 == numbytes, (numbits, numbytes)
+
+    template = IOTemplate(driver)
+    template.tms = [((tmsbuf[i/8] >> (i % 8)) & 1) for i in range(numbits)]
+    template.tdi = [(j, tdivar) for j in bitmap]
+    template.tdo = [(i>0 and 64 or 0, j) for (i,j) in enumerate(bitmap)]
+
+    StrClass = ctypes.c_char * numbytes
+    tdodata = TdioStruct()
+    tdidata = TdioStruct()
+    tdodata64 = tdodata.data
+    tdidata64 = tdidata.data
+    tdodatach = StrClass.from_buffer(tdodata)
+    tdidatach = StrClass.from_buffer(tdidata)
+
+    tdimask = (2 << ((numbits-1) % 64)) - 1
+
+    def run_jtag(data):
+        tdidatach.value = data[constlen:]
+        tdidata64[-1] &= tdimask
+        tdodata64[:] = list(template(tdidata64))
+        return tdodatach.raw
+
+    return run_jtag
+
+def cmdproc(read, write, len=len, True=True):
     cmdcache = {}
-    makearray = array.array
-    tdivar = TDIVariable()
-    states = [jtagstates.reset]
-    starttime = time.time()
+    cmdcacheget = cmdcache.get
     while True:
         data = read()
-        #print repr(data[:40])
-        if not data:
-            return
-        header = data[:10]
-        try:
-            numbits, strlen, tmsslice, tdislice, tmscache = cmdcache[header]
-        except KeyError:
-            assert header[:6] == 'shift:', "Invalid command received: %s" % repr(data[:40])
-            numbits = sum(ord(j) << (8 * i) for (i, j) in enumerate(data[6:10]))
-            numbytes = (numbits + 7) / 8
-            tmsslice = slice(len(header), len(header) + numbytes)
-            tdislice = slice(tmsslice.stop, tmsslice.stop + numbytes)
-            strlen = tdislice.stop
-            tmscache = {}
-            cmdcache[header] = numbits, strlen, tmsslice, tdislice, tmscache
-            #print cmdcache[header]
-        assert len(data) == strlen, (strlen, len(data), data)
-        tmsstr = data[tmsslice]
-        tdistr = data[tdislice]
-        try:
-            template, states = tmscache[tmsstr, states[-1]]
-        except KeyError:
-            template = IOTemplate(driver)
-            tmsbuf = makearray('B', tmsstr)
-            bitmap = [min(numbits-i, 8) for i in range(0, numbits, 8)]
-            template.tms = [((tmsbuf[i/8] >> (i % 8)) & 1) for i in range(numbits)]
-            template.tdi = [(j, tdivar) for j in bitmap]
-            template.tdo = [(i>0 and 8 or 0, j) for (i,j) in enumerate(bitmap)]
-            states = states[-1:]
-            for value in template.tms:
-                states.append(states[-1][value])
-            tmscache[tmsstr, states[0]] = template, states
-        #print '%0.1f' % (time.time() - starttime), states
-        result = list(template(makearray('B', tdistr)))
-        if len(template.tdo) > 1 and 0:
-            print [hex(x) for x in result]
-            print template.tdo
-        write(makearray('B', result).tostring())
+        constlen = cmdcacheget(len(data))
+        if constlen is None:
+            if not data:
+                return
+            constlen = cmdcache[len(data)] = (len(data) - 10) / 2 + 10
+        run_jtag = cmdcacheget(data[:constlen])
+        if run_jtag is None:
+            run_jtag = cmdcache[data[:constlen]] = getcmdinfo(data, constlen)
+        write(run_jtag(data))
 
 connection(cmdproc, 'xvc', 2542, readsize=4096, logpackets=False)
-
