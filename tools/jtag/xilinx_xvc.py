@@ -73,15 +73,30 @@ def getcmdinfo(data, constlen, tdivar=TDIVariable()):
     return run_jtag
 
 def cmdproc(read, write, len=len, True=True):
+    class CmdStruct(ctypes.LittleEndianStructure):
+        _pack_ = 1
+        _fields_ = (
+                ("cmdstr",   ctypes.c_char * 6),
+                ("numbits",  ctypes.c_uint32),
+        )
+    cmdstructsize = ctypes.sizeof(CmdStruct)
+
     cmdcache = {}
     cmdcacheget = cmdcache.get
     while True:
-        data = read()
-        constlen = cmdcacheget(len(data))
-        if constlen is None:
-            if not data:
+        data = ''
+        while len(data) < cmdstructsize:
+            newdata = read()
+            if not newdata:
                 return
-            constlen = cmdcache[len(data)] = (len(data) - 10) / 2 + 10
+            data += newdata
+        cmdinfo = CmdStruct.from_buffer_copy(data)
+        assert cmdinfo.cmdstr == 'shift:', cmdinfo.cmdstr
+        numbits = cmdinfo.numbits
+        numbytes = (cmdinfo.numbits + 7) // 8
+        constlen = cmdstructsize + numbytes
+        while len(data) < constlen + numbytes:
+            data += read()
         run_jtag = cmdcacheget(data[:constlen])
         if run_jtag is None:
             run_jtag = cmdcache[data[:constlen]] = getcmdinfo(data, constlen)
