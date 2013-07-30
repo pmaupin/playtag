@@ -50,8 +50,19 @@ class Chain(list):
     def repeat_read(self, func, info):
         readset = set(func() for i in range(self.repeat_count))
         if len(readset) > 1:
-            self.error("Inconsistent JTAG reads (%s):\n    %s" % (
-                    info, "\n    ".join(sorted(binnum(x) for x in readset))))
+            readset = sorted(readset)
+            badlist = "\n    ".join(binnum(x) for x in readset)
+            if info == 'IR':
+                print "Multiple IR values:", badlist
+                minval = maxval = readset[0]
+                for x in readset:
+                    minval &= x
+                    maxval |= x
+                if maxval < 2 * minval:
+                    readset = [minval]
+            if len(readset) > 1:
+                self.error("Inconsistent JTAG reads (%s):\n    %s" % (
+                    info, badlist))
         value, = readset
         return value
 
