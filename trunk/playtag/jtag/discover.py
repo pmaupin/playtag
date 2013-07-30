@@ -53,7 +53,6 @@ class Chain(list):
             readset = sorted(readset)
             badlist = "\n    ".join(binnum(x) for x in readset)
             if info == 'IR':
-                print "Multiple IR values:", badlist
                 minval = maxval = readset[0]
                 for x in readset:
                     minval &= x
