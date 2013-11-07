@@ -82,13 +82,12 @@ class FtdiDevice(FT):
     Commands = Commands
     isopen = False
     def __init__(self, UserConfig):
+        UserConfig.add_defaults(FtdiDefaults)
         index = self.index = info.find(UserConfig.CABLE_NAME)
         self.Open(index, self.byref(self))
+        self.init_buffers(UserConfig.FTDI_USB_IN_SIZE, UserConfig.FTDI_USB_OUT_SIZE)
         self.isopen = True
         atexit.register(self.__del__)
-        self._writebytes = []
-
-        UserConfig.add_defaults(FtdiDefaults)
 
         # Sequence taken from app note 129.
         #self.ResetPort()   # Does this reset both channels?
@@ -109,10 +108,28 @@ class FtdiDevice(FT):
             print hex(self.read_gpio())
         self.synchronize()
 
+    def init_buffers(self, maxread, maxwrite):
+        wbuffer = (maxwrite * self.UCHAR)()
+        wref = self.byref(wbuffer)
+        wxfer = self.DWORD()
+        wxref = self.byref(wxfer)
+        self.wbuffer = wbuffer
+        self.wlength = 0
+        self._wbufinfo = wref, wxfer, wxref
+        rbuffer = (maxread * self.UCHAR)()
+        rref = self.byref(rbuffer)
+        rxfer = self.DWORD()
+        rxref = self.byref(rxfer)
+        self._rbufinfo = rbuffer, rref, rxfer, rxref
+
     def set_gpio_mask(self, mask=0):
         self.output_mask = mask
 
-    def write_gpio(self, value, wr_gpio=Commands.wr_gpio):
+    def write_gpio(self, value=None, wr_gpio=Commands.wr_gpio):
+        if value is not None:
+            self._current_gpio = value
+        else:
+            value = self._current_gpio
         self.writebytes(
             wr_gpio[0], value & 0xFF, self.output_mask & 0xFF,
             wr_gpio[1], value >> 8, self.output_mask >> 8,
@@ -136,28 +153,35 @@ class FtdiDevice(FT):
         self.writebytes(Commands.set_divisor, div & 0xFF, div >> 8)
 
     def writebytes(self, *bytes):
-        self._writebytes.extend(bytes)
-        if bytes or not self._writebytes:
+        wbuffer = self.wbuffer
+        length = self.wlength
+        if bytes:
+            newlen = length + len(bytes)
+            wbuffer[length:newlen] = bytes
+            self.wlength = newlen
             return
-        bytes, self._writebytes = self._writebytes, []
+        if not length:
+            return
         if test:
-            print "Writing", [hex(x) for x in bytes]
-        length = len(bytes)
-        data = (length * self.UCHAR)(length)
-        data[:] = bytes
-        transferred = self.DWORD()
-        self.Write(self.byref(data), length, self.byref(transferred))
+            print "Writing", [hex(x) for x in wbuffer[:length]]
+        wref, transferred, transferredref = self._wbufinfo
+        self.Write(wref, length, transferredref)
         if transferred.value != length:
             raise SystemExit("Expected to write %d bytes; only wrote %d" % (length, transferred.value))
+        self.wlength = 0
+
+    def readintobuffer(self, length, bufinfo, send_immediate=Commands.send_immediate):
+        self.writebytes(send_immediate)
+        self.writebytes()
+        rbuffer, rref, transferred, transferredref = bufinfo
+        self.Read(rref, length, transferredref)
+        if transferred.value != length:
+            raise SystemExit("Expected to read %d bytes; only read %d" % (length, transferred.value))
+        return rbuffer
 
     def readbytes(self, length):
-        self.writebytes()
-        data = (length * self.UCHAR)()
-        transferred = self.DWORD()
-        self.Read(self.byref(data), length, self.byref(transferred))
-        if transferred.value != length:
-            raise SystemExit("Expected to read %d bytes; only wrote %d" % (length, transferred.value))
-        bytes = list(data)
+        rbuffer = self.readintobuffer(length, self._rbufinfo)
+        bytes = list(rbuffer[:length])
         if test:
             print "Reading", [hex(x) for x in bytes]
         return bytes

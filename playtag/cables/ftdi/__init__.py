@@ -1,5 +1,8 @@
 from d2xx import info
-from d2xx_data import Jtagger
+try:
+    from d2xx_data import Jtagger
+except ValueError:
+    pass
 
 def showdevs():
     print
