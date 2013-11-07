@@ -168,7 +168,9 @@ class FT(BASE_HANDLE):
         ]
 
     ListDevices = func(PVOID, PVOID, DWORD)
-    if not windows:
+    if windows:
+        GetComPortNumber = func(HANDLE, PULONG)
+    else:
         SetVIDPID = func(DWORD, DWORD)
         GetVIDPID = func(LPDWORD, LPDWORD)
     CreateDeviceInfoList = func(LPDWORD)
