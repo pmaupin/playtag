@@ -29,15 +29,17 @@ class JtagTemplate(iotemplate.IOTemplate):
     # Get the jtag state vars from the states module
     vars().update(vars(jtagstates))
 
-    def protocol_init(self, bypass_info):
+    def protocol_init(self, kwds):
         ''' Called by __init__.  Sets up protocol-specific instance info.
         '''
-        self.states = [self.unknown]
+        self.states = [kwds.pop('startstate', self.unknown)]
         bypass_dict = {}
         self.bypass_info = bypass_dict.get
-        if bypass_info:
+        bypass_info = kwds.pop('bypass_info', None)
+        if bypass_info is not None:
             bypass_dict[self.shift_ir] = bypass_info.next_ir, bypass_info.prev_ir
             bypass_dict[self.shift_dr] = bypass_info.next_dr, bypass_info.prev_dr
+        assert not kwds, kwds
 
     def protocol_copy(self, new):
         ''' Called by self.copy().  Copy our protocol
@@ -101,11 +103,15 @@ class JtagTemplate(iotemplate.IOTemplate):
             state = len(tdi)
         if isinstance(state, int):
             numbits = state
-            assert oldstate.shifting
             tmslist.extend(oldstate.cyclestate(numbits))
             if adv:
                 tmslist[-1] ^= 1
                 states.append(oldstate[tmslist[-1]])
+            if not oldstate.shifting:
+                # Handle run/idle
+                assert not read
+                assert tdi is defaultvar
+                tdi = 0
         else:
             assert adv is None, state
             newtms = oldstate[state]

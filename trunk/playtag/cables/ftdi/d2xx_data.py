@@ -3,11 +3,11 @@ from ctypes import c_ulonglong, byref
 from .d2xx import FtdiDevice
 from .mpsse_template import MpsseTemplate
 
-def debug(title, data, numbytes):
-    print title,
+def debug_dump(f, title, data, numbytes):
+    print >> f, title,
     for i in range(numbytes):
-        print '%02x' % ((data[i/8] >> ((i % 8) * 8)) & 0xFF),
-    print
+        print >> f, '%02x' % ((data[i/8] >> ((i % 8) * 8)) & 0xFF),
+    print >> f
 
 class Jtagger(MpsseTemplate.mix_me_in()):
 
@@ -18,7 +18,7 @@ class Jtagger(MpsseTemplate.mix_me_in()):
         source = (size * 2 * c_ulonglong)()  # Both TMS and TDI go here
         dest = (size * c_ulonglong)()
         count = driver.DWORD()
-        self.wparams = driver.Write, len(source) * 64, source, byref(source), count, byref(count)
+        self.wparams = driver.Write, len(source) * 64, source, byref(source), count, byref(count), driver.debug
         self.rparams = driver.Read, len(dest) * 64, dest, byref(dest)
 
     def __call__(self, sendstr, numbits, rcvlen, formatter = '{0:064b}'.format,
@@ -32,14 +32,15 @@ class Jtagger(MpsseTemplate.mix_me_in()):
             return
         sendstr = join(sendstr)
         assert len(sendstr) == numbits
-        write, sourcelen, source, sourceref, count, countref = self.wparams
+        write, sourcelen, source, sourceref, count, countref, debug = self.wparams
         assert not numbits & 7
         numbytes = (numbits + 7) / 8
         numints = (numbytes + 7) / 8
         start, stop = tee(xrange(numbits - 64, 0, -64))
         slices = izip(chain(start, (None,)), chain((None,), stop))
         source[:numints] = [int(sendstr[x:y],2) for x,y in slices]
-        #debug('xmt', source, numbytes)
+        if debug:
+            debug_dump(debug, 'xmt', source, numbytes)
         write(sourceref, numbytes, countref)
         assert count.value == numbytes
         if not rcvlen:
@@ -51,7 +52,8 @@ class Jtagger(MpsseTemplate.mix_me_in()):
         numbytes = (numbits + 7) / 8
         numints = (numbytes + 7) / 8
         read(destref, numbytes, countref)
-        #debug('rcv', dest, numbytes)
+        if debug:
+            debug_dump(debug, 'rcv', dest, numbytes)
         assert count.value == numbytes
         allbits = [formatter(x) for x in reversed(dest[:numints])]
         allbits[0] = allbits[0][numints * 64 - numbits:]

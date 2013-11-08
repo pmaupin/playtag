@@ -53,7 +53,12 @@ if config.CABLE_NAME is None:
 
 driver = cablemodule.Jtagger(config)
 
-if config.SHOW_CONFIG:
+ismain = __name__ == '__main__'
+
+if ismain and config.SHOW_CONFIG:
     print config.dump()
 
-print Chain(driver)
+chain = Chain(driver)
+
+if ismain:
+    print chain
