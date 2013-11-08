@@ -73,17 +73,17 @@ class IOTemplate(object):
 
     loopstack = None      # Nothing on the loop stack to start with
 
-    def __init__(self, cable=None, cmdname='', proto_info=None):
+    def __init__(self, cable=None, cmdname='', **kwds):
         ''' Initialize all our data.  cmdname is just for debugging.
-            proto_info is currently unused.
+           kwds is for protocol-specific information.
         '''
         self.cable=cable
         self.cmdname = cmdname
         self.tms = []
         self.tdi = []
         self.tdo = []
-        self.protocol_init(proto_info)
-    def protocol_init(self, proto_info):
+        self.protocol_init(kwds)
+    def protocol_init(self, kwds):
         ''' To be overridden by protocol-specific subclass
         '''
         pass

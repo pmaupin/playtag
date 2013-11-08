@@ -5,9 +5,6 @@ from collections import defaultdict
 from d2xx_wrapper import FT, windows
 from mpsse_commands import Commands
 
-test = __name__ == '__main__'
-
-
 DWORD = FT.DWORD
 LPDWORD = FT.LPDWORD
 CHAR = FT.CHAR
@@ -77,12 +74,15 @@ class FtdiDefaults(object):
     FTDI_GPIO_OUT = 0x08
     FTDI_ADAPTIVE_CLOCKING = False
     FTDI_LOOPBACK_TEST = False
+    FTDI_DEBUG = False
 
 class FtdiDevice(FT):
     Commands = Commands
     isopen = False
     def __init__(self, UserConfig):
         UserConfig.add_defaults(FtdiDefaults)
+        if UserConfig.FTDI_DEBUG:
+            self.debug = open(UserConfig.FTDI_DEBUG, 'wb')
         index = self.index = info.find(UserConfig.CABLE_NAME)
         self.Open(index, self.byref(self))
         self.init_buffers(UserConfig.FTDI_USB_IN_SIZE, UserConfig.FTDI_USB_OUT_SIZE)
@@ -104,8 +104,8 @@ class FtdiDevice(FT):
         self.setspeed(UserConfig.FTDI_JTAG_FREQ, UserConfig.FTDI_ADAPTIVE_CLOCKING, UserConfig.FTDI_LOOPBACK_TEST)
         self.set_gpio_mask(UserConfig.FTDI_GPIO_MASK)
         self.write_gpio(UserConfig.FTDI_GPIO_OUT)
-        if test:
-            print hex(self.read_gpio())
+        if self.debug:
+            print >> self.debug, hex(self.read_gpio())
         self.synchronize()
 
     def init_buffers(self, maxread, maxwrite):
@@ -162,8 +162,8 @@ class FtdiDevice(FT):
             return
         if not length:
             return
-        if test:
-            print "Writing", [hex(x) for x in wbuffer[:length]]
+        if self.debug:
+            print >> self.debug, "Writing", [hex(x) for x in wbuffer[:length]]
         wref, transferred, transferredref = self._wbufinfo
         self.Write(wref, length, transferredref)
         if transferred.value != length:
@@ -182,8 +182,8 @@ class FtdiDevice(FT):
     def readbytes(self, length):
         rbuffer = self.readintobuffer(length, self._rbufinfo)
         bytes = list(rbuffer[:length])
-        if test:
-            print "Reading", [hex(x) for x in bytes]
+        if self.debug:
+            print >> self.debug, "Reading", [hex(x) for x in bytes]
         return bytes
 
     def synchronize(self):
@@ -206,7 +206,7 @@ class FtdiDevice(FT):
             finally:
                 self.Close()
 
-if test:
+if __name__ == '__main__':
     print str(info)
     if info:
         x = FtdiDevice(-1)

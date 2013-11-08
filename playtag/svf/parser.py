@@ -47,7 +47,7 @@ class ParseSVF(object):
         def __init__(self, linenum=0, length=0, data=None):
             self.length = length
             self.linenum = linenum
-            self.data = data or []
+            self.data = data or ()
         def __str__(self):
             multiple = len(self.data) > 1
             return '(length=%s data=%s%s)' % (self.length,
@@ -279,7 +279,7 @@ class ParseSVF(object):
         if state not in self.stable:
             raise SvfError('%s is not a stable state' % state)
         prevstate, self.CURSTATE = self.CURSTATE, statelist[-1]
-        return self.State(prevstate, statelist, linenum)
+        return self.State(prevstate, tuple(statelist), linenum)
     State = namedtuple('State', 'prevstate, statelist, linenum')
 
     def cmd_trst(self, cmd, iterparams, linenum):

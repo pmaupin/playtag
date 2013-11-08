@@ -79,7 +79,7 @@ class BusDriver(dict):
         write, length, size = key
         name = '%s_%d_%d' % ('write' if write else 'read', length, size)
         data = self.data_var if write else 0
-        self[key] = cmd = JtagTemplate(self.jtagrw, name, self.bypass_info)
+        self[key] = cmd = JtagTemplate(self.jtagrw, name, bypass_info=self.bypass_info)
         outerloop = (length + 255) / 256
         innerloop = (length + 255) % 256
         if outerloop:
