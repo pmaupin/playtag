@@ -81,8 +81,7 @@ class FtdiDevice(FT):
     isopen = False
     def __init__(self, UserConfig):
         UserConfig.add_defaults(FtdiDefaults)
-        if UserConfig.FTDI_DEBUG:
-            self.debug = open(UserConfig.FTDI_DEBUG, 'wb')
+        self.debug = UserConfig.FTDI_DEBUG and open(UserConfig.FTDI_DEBUG, 'wb')
         index = self.index = info.find(UserConfig.CABLE_NAME)
         self.Open(index, self.byref(self))
         self.init_buffers(UserConfig.FTDI_USB_IN_SIZE, UserConfig.FTDI_USB_OUT_SIZE)
