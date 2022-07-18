@@ -61,6 +61,8 @@ class JtagTemplate(iotemplate.IOTemplate):
             == starting state of second) and then add them together.
         '''
         states, ostates = self.states, other.states
+        if len(ostates) == 1 and ostates[-1] == states[-1]:
+            return self
         assert states[-1][ostates[1]] == ostates[0][ostates[1]], (
             "Mismatched state transitions on add:  %s -> %s not same TMS values as %s -> %s" %
             (states[-1], ostates[1], ostates[0], ostates[1]))
@@ -74,6 +76,8 @@ class JtagTemplate(iotemplate.IOTemplate):
             state), and then do the multiply on our states.
         '''
         states = self.states
+        if len(states) == 1:
+            return self
         assert states[-1][states[1]] == states[0][states[1]], (
             "Mismatched state transitions on multiply:  %s -> %s not same TMS values as %s -> %s" %
             (states[-1], states[1], states[0], states[1]))

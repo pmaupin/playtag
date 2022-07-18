@@ -2,7 +2,7 @@ import os
 import sys
 
 class UserConfig(object):
-    LOGPACKETS = False
+    LOG_PACKETS = False
     CABLE_DRIVER = None
     CABLE_NAME = None
     SHOW_CHAIN = True
@@ -13,7 +13,8 @@ class UserConfig(object):
 
     def loadfile(self, fname):
         if self.root is None:
-            self.root = os.path.dirname(sys.argv[0])
+            from .. import cables
+            self.root = os.path.dirname(cables.__file__)
         if not os.path.exists(fname):
             fname = os.path.join(self.root, fname)
             if not os.path.exists(fname):
@@ -40,18 +41,18 @@ class UserConfig(object):
             except (TypeError, ValueError):
                 pass
             setattr(self, name.upper(), value)
-        if usesys:
-            sys.argv[1:] = args
 
         if parseargs and args:
             self.CABLE_DRIVER = args.pop(0)
             if args:
-                devname = ' '.join(args)
+                devname = args.pop(0)
                 try:
                     devname = int(devname, 0)
                 except ValueError:
                     pass
                 self.CABLE_NAME = devname
+        if usesys:
+            sys.argv[1:] = args
         return args, options
 
     def loaddefault(self, fname, args=None):
@@ -116,3 +117,60 @@ class UserConfig(object):
             break
         else:
             self.error("Could not open cable driver %s" % repr(self.CABLE_DRIVER))
+
+
+def basic_startup(args=None, args_expected=False):
+    ''' Parse the argument list (sys.argv by default) into a configuration
+        object, and find the associated JTAG driver.
+    '''
+
+    from ..jtag.discover import Chain
+    from .. import cables as cable_pkg
+
+    def showtypes():
+        os_cmd = sys.argv[0]
+        cables = os.listdir(cable_pkg.__path__[0])
+        cables = (x.split('.',1)[0] for x in cables if not x.startswith(('_', '.')))
+        raise SystemExit('''
+
+    usage: %s <cabletype> [<cablename>] [<option>=<value>]
+
+    Valid cabletypes are the subpackages under playtag/cables:
+
+        %s
+
+    Valid cablenames and options vary by cabletype --
+        type '%s <cabletype>' for a list.
+
+    You can either give the name of the cable, or the index number.
+    For example if you have a single digilent USB cable, you could
+    type either:
+
+        %s ftdi "Digilent USB Device A"  # (if this is the name of the cable)
+
+    or:
+
+        %s ftdi 0
+
+    ''' % (os_cmd, ', '.join(sorted(cables)), os_cmd, os_cmd, os_cmd))
+
+    config = UserConfig()
+    args, options = config.readargs(args, parseargs=True)
+
+    if args and not args_expected:
+        print('\n\nUnexpected argument(s):', args)
+        showtypes()
+
+    if config.CABLE_DRIVER is None:
+        showtypes()
+
+    cablemodule = config.getcable()
+
+    if config.CABLE_NAME is None:
+        cablemodule.showdevs()
+        raise SystemExit
+
+    config.driver = cablemodule.Jtagger(config)
+    if args:
+        config.args = args
+    return config

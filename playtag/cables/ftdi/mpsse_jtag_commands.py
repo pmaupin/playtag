@@ -192,6 +192,8 @@ def mpsse_jtag_commands(tms, tdi, tdo, do_tms=do_tms, do_tdi_tdo=do_tdi_tdo):
         while info:
             old_tms, old_tdi = get_func()(info, addwrite, addread, old_tdi)
 
+        if read_template:
+            addwrite(hexconv(Commands.send_immediate))
         write_template.reverse()
         read_template.reverse()
         return ''.join(write_template), ''.join(read_template)

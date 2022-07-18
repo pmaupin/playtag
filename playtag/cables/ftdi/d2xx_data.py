@@ -18,7 +18,6 @@ def debug_dump(f, title, data, numbytes):
     print('', file=f)
 
 class Jtagger(MpsseTemplate.mix_me_in()):
-    debug = False
 
     def __init__(self, config, maxbits=2**22):
         driver = FtdiDevice(config)

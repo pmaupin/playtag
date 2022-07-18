@@ -70,9 +70,8 @@ def hack_comments(data):
     return ''.join(result)
 
 def tokenize(fname, warnings, hack, splitter=TokenRegex.splitter):
-    f = open(fname, 'rb')
-    data = f.read()
-    f.close()
+    with open(fname, 'rb') as f:
+        data = f.read().decode('Latin-1')
 
     data = data.replace('\r\n', '\n').replace('\r', '\n')
     data = data.replace('\x1a', '').replace('\x00', '')

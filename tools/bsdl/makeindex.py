@@ -66,7 +66,7 @@ packages = set('''
    _hq160 _pq160 _q160 _xxp160 _xxq160 sq160 _160 p160
    m164 _165 aeu169 _172 _ht176 _xxt176 vq176 _176 qn180 fet180 _192 cs196 cs201
    pq208 _hq208 _pq208 _xxb208 _xxp208 _xxq208 aeq208 eq208 aq208 fet208 bq208 cq208 fbd208 lpq208 q208 pq208 p208 sq208 xxfet208 r208 xxfbd208
-   _209 _cb228 
+   _209 _cb228
    _hq240 _pq240 aq240 bq240 cq240 eq240 ar240 q240 vq240 sq240 sr240 r240
    fg256 _bg256 _fg256 _ft256 _xftg256 _xxb256 _xxbg256 _xxf256 _xxft256 _xxftn256 aeb256 aef256 af256 bf256 b256 ef256 bb256 lfg256
    ffg256 sf256 zm256 gfg256 m256 fg256 _256
@@ -91,7 +91,7 @@ packages = set('''
    cf780 df780 ff780 h780 lf780 wf780
    _fg860
    _ff896 fg896 lcg896 lfg896 llg896
-   _fg900 _xxf900 
+   _fg900 _xxf900
    _ef957
    _ffbga1020 df1020 ff1020 gf1020
    _cf1144 _ff1148
@@ -100,6 +100,29 @@ packages = set('''
    _ff1517 ff1517 lf1517
    _ff1696
    _ef1704 _ff1704 _xxfc1704
+   _civ_ffg1157  _civ_ffg1158 _civ_ffg1761 _civ_ffg1926 _civ_ffg1927 _civ_ffg1930 _civ_ffv1157
+   _civ_ffv1158 _civ_ffv1927 _civ_ffva1156 _civ_ffva1517 _civ_ffva1760 _civ_ffva2104 _civ_ffva676
+   _civ_ffvb1760 _civ_ffvb2104 _civ_ffvb676 _civ_ffvc1517 _civ_ffvc2104 _civ_ffvd1517 _civ_ffvd900
+   _civ_ffve1517 _civ_ffve1760 _civ_ffvj1760 _civ_fhga2104 _civ_fhgb2104 _civ_fhgc2104 _civ_figd2104
+   _civ_flga2104 _civ_flga2577 _civ_flga2892 _civ_flgb2104 _civ_flgb2377 _civ_flgc2104 _civ_flgf1924
+   _civ_flva1517 _civ_flva2104 _civ_flvb1760 _civ_flvb2104 _civ_flvc2104 _civ_flvd1517 _civ_flvd1924
+   _civ_flvf1924 _civ_fsga2577 _civ_fsgd2104 _civ_fsva3824 _civ_fsvb3824 _civ_fsvh1924 _civ_fsvh2104
+   _civ_fsvh2892 _civ_fsvj1760 _civ_fsvk2892 _civ_sfvb784 _civ_vsva1365 _cl400 _cl484 _clg225 _clg400
+   _clg484 _clg485 _cna1509 _cpg236 _cpg238 _cpga196 _cs324 _cs325 _csg324 _csg325 _csga225 _csga324
+   _fbg484 _fbg676 _fbg900 _fbv484 _fbv676 _fbv900 _fbva676 _fbva900 _fbvb900 _ff900 _ffg1156 _ffg1157
+   _ffg1158 _ffg1761 _ffg1926 _ffg1927 _ffg1928 _ffg1930 _ffg676 _ffg900 _ffg901 _ffv1156 _ffv1157
+   _ffv1158 _ffv1761 _ffv1927 _ffv676 _ffv900 _ffv901 _ffva1156 _ffva1517 _ffva1760 _ffva2104 _ffva676
+   _ffvb1156 _ffvb1517 _ffvb1760 _ffvb2104 _ffvb676 _ffvc1156 _ffvc1517 _ffvc1760 _ffvc2104 _ffvc900
+   _ffvd1156 _ffvd1517 _ffvd1760 _ffvd900 _ffve1156 _ffve1517 _ffve1760 _ffve1924 _ffve900 _ffvf1517
+   _ffvf1760 _ffvg1517 _ffvh1760 _ffvj1760 _fg484 _fgg484 _fgg676 _fgga484 _fgga676 _fhg1761
+   _fhga2104 _fhgb2104 _fhgc2104 _figd2104 _flg1155 _flg1925 _flg1926 _flg1928 _flg1930 _flg1931
+   _flg1932 _flga2104 _flga2577 _flga2892 _flgb2104 _flgb2377 _flgc2104 _flgf1924 _flva1517
+   _flva2104 _flvb1760 _flvb2104 _flvc2104 _flvd1517 _flvd1924 _flvf1924 _fsga2577 _fsgd2104
+   _fsva3824 _fsvb3824 _fsve1156 _fsvf1760 _fsvg1517 _fsvh1760 _fsvh1924 _fsvh2104 _fsvh2892
+   _fsvj1760 _fsvk2892 _ftg256 _ftgb196 _hcg1155 _hcg1931 _hcg1932 _lsvc4072 _nbvb1024
+   _rb484 _rb676 _rf1156 _rf1157 _rf1158 _rf1761 _rf1930 _rf676 _rf900 _rs484 _sbg484 _sbg485
+   _sbv484 _sbv485 _sbva484 _sfva625 _sfva784 _sfvb784 _sfvc784 _ubva530 _vfvb1024 _vfvc1760
+   _viva1596 _vsva1365 _vsva2197 _vsva2785 _vsva3340 _vsva3697 _vsvd1760
 '''.split())
 
 def prune(tree, prefix):
@@ -253,38 +276,55 @@ def strip_silly(source):
     assert total < 200000, total   # Would take too long
     return [x[1] for x in withx]
 
+class Part(str):
+    def __init__(self, name):
+        self.name = name
+
 def readfile(fname=inp_fname):
 
     parts = []
 
-    class Part(object):
-        def __init__(self, name):
-            self.name = name
-            parts.append(self)
-
-    for line in open(fname, 'rb').read().splitlines():
+    for line in open(fname, 'rt').read().splitlines():
         if line.startswith(' '):
             name, value = line.split('=', 1)
             setattr(part, name.strip(), value.strip())
         else:
             part = Part(line.strip())
+            parts.append(part)
+    return parts
+
+def readdest(fname=out_fname):
+
+    parts = []
+
+    for line in open(fname, 'rt').read().splitlines():
+        line = line.split()
+        if not line:
+            continue
+        assert len(line) == 3, line
+        p = Part(line[2])
+        p.idcode_register = '"%s"' % line[0]
+        p.instruction_length = str(len(line[1]))
+        p.instruction_capture = '"%s"' % line[1]
+        p.bsdl_file_name = 'preexisting'
+        parts.append(p)
     return parts
 
 def dump(parts, fname=out_fname):
     def sortkey(x):
-        x = x.idcode_register.replace('x', '0')
+        x = x.idcode_register.replace('x', '/')
         assert len(x) == 32
         return x[-12:] + x[4:-12] + x[:4]
 
     parts.sort(key=sortkey)
-    f = open(fname, 'wb')
+    f = open(fname, 'wt')
     for part in parts:
         assert part.instruction_length == len(part.instruction_capture)
         print('%s  %-20s %s' % (part.idcode_register, part.instruction_capture, part.name.lower()), file=f)
     f.close()
 
 if __name__ == '__main__':
-    parts = readfile()
+    parts = readfile() + readdest()
     parts = strip_silly(parts)
     parts = check_collisions(parts)
     print('%s records after removing redundancies' % len(parts))

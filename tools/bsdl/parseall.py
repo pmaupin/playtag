@@ -21,7 +21,7 @@ filedir = 'downloads/'
 debug = False
 
 try:
-    badfiles = set(open('badfiles.txt', 'rb').read().split())
+    badfiles = set(open('badfiles.txt', 'rt').read().split())
 except:
     badfiles = set()
 
@@ -44,14 +44,14 @@ def go(doall=False, debug=True):
             fdata = FileParser(fname)
         except KeyboardInterrupt:
             raise
-        except BSDLError, s:
+        except BSDLError as s:
             print()
             print(fname)
             print(s)
             print()
             if not debug:
                 badfiles.add(fname)
-        except Exception, s:
+        except Exception as s:
             print()
             print(fname)
             traceback.print_exc()
@@ -69,7 +69,7 @@ def go(doall=False, debug=True):
     attrs = 'idcode_register instruction_length instruction_capture bsdl_file_name parsed_ok'.split()
     update = doall and not debug
     if update:
-        outf = open('allchips.txt', 'wb')
+        outf = open('allchips.txt', 'wt')
     for chip in chips:
         fname = chip.bsdl_file_name
         missing = [x for x in attrs if not hasattr(chip, x)]
@@ -86,7 +86,7 @@ def go(doall=False, debug=True):
         outf.close()
 
     if update and badfiles:
-        f = open('badfiles.txt', 'wb')
+        f = open('badfiles.txt', 'wt')
         f.write('\n'.join(sorted(badfiles)))
         f.write('\n')
         f.close()

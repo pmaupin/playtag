@@ -19,6 +19,7 @@ import select
 import socket
 import socketserver
 import collections
+import time
 
 def logger(what):
     print(what)
@@ -68,24 +69,44 @@ def connection(cmdprocess, procname, address, run=True, logpackets=True, logger=
     class RequestHandler(socketserver.BaseRequestHandler):
         def setup(self):
             logger("Connected to %s:%s -- now serving %s" % (self.client_address + (procname,)))
-            # Ask the network driver to send packets immediately
+            # Ask the network driver to send packets and acks immediately
             self.request.setsockopt(socket.IPPROTO_TCP, socket.TCP_QUICKACK, 1)
+            self.request.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            # Only handle this one request at a time.
+            # (In theory, we could get more than one request, but the goal here
+            # is to let the slow human know as soon as possible that the socket
+            # is occupied, so it's no big deal.)
+            self.server.socket.shutdown(socket.SHUT_RDWR)
+            self.server.socket.close()
+            self.server_closed = True
 
         def finish(self):
-            logger("Client disconnected.\n\nWaiting for %s connection on %s:%s  (Ctrl-C to exit)" %
-                ((procname,) + self.server.server_address))
+            self.request.close()
+            logger("Client disconnected.\n")
 
         def handle(self):
             read, write = socketrw(self.request, logpackets and logger or None, readsize)
             cmdprocess(read, write)
 
-    server = socketserver.TCPServer(('', address), RequestHandler)
+    while 1:
+        server = socketserver.TCPServer(('', address), RequestHandler)
+        server.server_closed = False
 
-    if run:
+        if not run:
+            break
+
         logger("Waiting for %s connection on %s:%s  (Ctrl-C to exit)" %
                 ((procname,) + server.server_address))
         try:
-            server.serve_forever()
+            server.handle_request()
         except KeyboardInterrupt:
+            if not server.server_closed:
+                server.socket.shutdown(socket.SHUT_RDWR)
+                server.socket.close()
+                server.server_closed = True
             logger("\nKeyboard Interrupt received; exiting...\n")
+            break
+
+        # This sleep seems to ensure that the rebind has no issues.
+        time.sleep(1)
     return server
