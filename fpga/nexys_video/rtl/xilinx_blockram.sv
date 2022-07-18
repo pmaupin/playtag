@@ -2,7 +2,9 @@
 
     xilinx_dp_ram.sv
 
-    An unpublished work by Patrick Maupin
+    A part of playtag.
+    Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+    License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 
     This module allows direct verilog instantiation of a Xilinx dual-port
     blockram, in NO-CHANGE mode.

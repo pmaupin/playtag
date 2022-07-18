@@ -1,3 +1,9 @@
+'''
+A part of playtag.
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
+
+'''
 import os
 import sys
 

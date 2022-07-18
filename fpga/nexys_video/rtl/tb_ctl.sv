@@ -1,5 +1,9 @@
 `default_nettype none
 /*
+    A part of playtag.
+    Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+    License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
+
     Sits on top of a byte-wide interface to JTAG and
     introduces control semantics, with 32 bit addressing,
     32 bit memories, etc.

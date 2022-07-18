@@ -1,4 +1,13 @@
 `default_nettype none
+/*
+    A part of playtag.
+    Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+    License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
+
+Example testbench using JTAG interface.
+
+*/
+
 module tb_top(
 // input wire          ac_adc_sdata,
 // input wire          ac_bclk,
