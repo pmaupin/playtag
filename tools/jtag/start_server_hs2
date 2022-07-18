@@ -1,0 +1,3 @@
+# For HS2 cable, AD7 must be set to enable OE signals.
+
+./xilinx_xvc.py ftdi 0 FTDI_GPIO_MASK=0x8b FTDI_GPIO_OUT=0x88

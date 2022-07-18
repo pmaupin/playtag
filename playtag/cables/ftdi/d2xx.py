@@ -1,9 +1,31 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
+
+'''
+Code to read/write FTDI parts in D2XX mode
+
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
+'''
+
 import time
 import atexit
 from collections import defaultdict
-from d2xx_wrapper import FT, windows
-from mpsse_commands import Commands
+from .d2xx_wrapper import FT, windows
+from .mpsse_commands import Commands
+
+test = False
+
+try:
+    unicode
+except NameError:
+    def convert_load(s):
+        if isinstance(s, bytes):
+            return s.decode('Latin-1')
+        return s
+else:
+    def convert_load(s):
+        return s
+
 
 DWORD = FT.DWORD
 LPDWORD = FT.LPDWORD
@@ -24,7 +46,7 @@ class SysInfo(list):
         strings = self.indexstrings = defaultdict(list)
         for i, what in enumerate(self):
             for name, _ in what._fields_:
-                value = ''.join(str(getattr(what, name)).split()).lower()
+                value = ''.join(str(convert_load(getattr(what, name))).split()).lower()
                 strings[value].append(i)
 
     def __str__(self):
@@ -32,7 +54,7 @@ class SysInfo(list):
         for i, what in enumerate(self):
             result.append('\n[%d]' % i)
             for name, _ in what._fields_:
-                x = getattr(what, name)
+                x = convert_load(getattr(what, name))
                 result.append('        %s = %s' % (name, repr(str(x))))
         if not result:
             result.append("\nNo devices found" if FT.loaded else "\nCould not find FTDI DLL")
@@ -44,10 +66,14 @@ class SysInfo(list):
             return index + (index < 0 and len(self))
         except TypeError:
             pass
+        if isinstance(index, str):
+            index = [index]
+        devnum = []
         try:
-            devnum = self.indexstrings[''.join(index.split()).lower()]
+            for s in index:
+                devnum += self.indexstrings[''.join(s.split()).lower()]
         except AttributeError:
-            devnum = []
+            pass
         if len(devnum) != 1:
             if not devnum:
                 message = '\n'.join(['',
@@ -79,12 +105,12 @@ class FtdiDefaults(object):
 class FtdiDevice(FT):
     Commands = Commands
     isopen = False
-    def __init__(self, UserConfig):
-        UserConfig.add_defaults(FtdiDefaults)
-        self.debug = UserConfig.FTDI_DEBUG and open(UserConfig.FTDI_DEBUG, 'wb')
-        index = self.index = info.find(UserConfig.CABLE_NAME)
+    def __init__(self, config):
+        config.add_defaults(FtdiDefaults)
+        self.debug = config.FTDI_DEBUG and open(config.FTDI_DEBUG, 'wt') or test
+        index = self.index = info.find(config.CABLE_NAME)
         self.Open(index, self.byref(self))
-        self.init_buffers(UserConfig.FTDI_USB_IN_SIZE, UserConfig.FTDI_USB_OUT_SIZE)
+        self.init_buffers(config.FTDI_USB_IN_SIZE, config.FTDI_USB_OUT_SIZE)
         self.isopen = True
         atexit.register(self.__del__)
 
@@ -92,19 +118,19 @@ class FtdiDevice(FT):
         #self.ResetPort()   # Does this reset both channels?
         if windows:  # Broken in Linux driver libftd2xx.so.1.1.12
             self.Purge(self.PURGE_RX | self.PURGE_TX)
-        self.SetUSBParameters(UserConfig.FTDI_USB_IN_SIZE, UserConfig.FTDI_USB_OUT_SIZE)
+        self.SetUSBParameters(config.FTDI_USB_IN_SIZE, config.FTDI_USB_OUT_SIZE)
         self.SetChars(0, 0, 0, 0)
-        self.SetTimeouts(UserConfig.FTDI_READ_TIMEOUT, UserConfig.FTDI_WRITE_TIMEOUT)
-        self.SetLatencyTimer(UserConfig.FTDI_LATENCY_TIMER)
+        self.SetTimeouts(config.FTDI_READ_TIMEOUT, config.FTDI_WRITE_TIMEOUT)
+        self.SetLatencyTimer(config.FTDI_LATENCY_TIMER)
         self.SetBitMode(0, self.BITMODE_RESET)
         self.SetBitMode(0, self.BITMODE_MPSSE)
-        time.sleep(UserConfig.FTDI_STARTUP_SLEEP/1000.0)  # From example in app note 129.  Whatever.
+        time.sleep(config.FTDI_STARTUP_SLEEP/1000.0)  # From example in app note 129.  Whatever.
         self.synchronize()
-        self.setspeed(UserConfig.FTDI_JTAG_FREQ, UserConfig.FTDI_ADAPTIVE_CLOCKING, UserConfig.FTDI_LOOPBACK_TEST)
-        self.set_gpio_mask(UserConfig.FTDI_GPIO_MASK)
-        self.write_gpio(UserConfig.FTDI_GPIO_OUT)
+        self.setspeed(config.FTDI_JTAG_FREQ, config.FTDI_ADAPTIVE_CLOCKING, config.FTDI_LOOPBACK_TEST)
+        self.set_gpio_mask(config.FTDI_GPIO_MASK)
+        self.write_gpio(config.FTDI_GPIO_OUT)
         if self.debug:
-            print >> self.debug, hex(self.read_gpio())
+            print(hex(self.read_gpio()), file=self.debug)
         self.synchronize()
 
     def init_buffers(self, maxread, maxwrite):
@@ -162,7 +188,7 @@ class FtdiDevice(FT):
         if not length:
             return
         if self.debug:
-            print >> self.debug, "Writing", [hex(x) for x in wbuffer[:length]]
+            print("Writing", [hex(x) for x in wbuffer[:length]], file=self.debug)
         wref, transferred, transferredref = self._wbufinfo
         self.Write(wref, length, transferredref)
         if transferred.value != length:
@@ -182,7 +208,7 @@ class FtdiDevice(FT):
         rbuffer = self.readintobuffer(length, self._rbufinfo)
         bytes = list(rbuffer[:length])
         if self.debug:
-            print >> self.debug, "Reading", [hex(x) for x in bytes]
+            print("Reading", [hex(x) for x in bytes], file=self.debug)
         return bytes
 
     def synchronize(self):
@@ -205,7 +231,3 @@ class FtdiDevice(FT):
             finally:
                 self.Close()
 
-if __name__ == '__main__':
-    print str(info)
-    if info:
-        x = FtdiDevice(-1)

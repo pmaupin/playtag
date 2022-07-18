@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 Scrape BSDL files from the web.
 
@@ -24,4 +24,4 @@ while filenums:
     del filenums[-8:]
     shortlist = ['www.bsdl.info/download.htm?id=%d' % x for x in shortlist]
     result = subprocess.call(prefix + shortlist)
-    print result, len(filenums)
+    print(result, len(filenums))

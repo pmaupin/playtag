@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 CHeck that the scraped files are contiguous.
 '''
@@ -11,10 +11,10 @@ for fname in os.listdir('downloads'):
     if x[0] == 'download.htm?id' and x[-1].isdigit():
         nums.add(int(x[-1]))
     else:
-        print "Unknown file", fname
+        print("Unknown file", fname)
 
 missing = set(range(min(nums), max(nums) + 1)) - nums
 if not missing:
-    print "All present and accounted for"
+    print("All present and accounted for")
 else:
-    print "Missing", missing
+    print("Missing", missing)

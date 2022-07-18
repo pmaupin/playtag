@@ -2,31 +2,14 @@
 This module contains code to map JTAG TMS/TDI/TDO template strings into
 FTDI MPSSE commands.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 import re
 import itertools
 
 from .mpsse_commands import Commands, hexconv
 
-
-debug = True
-
-if debug:
-    def printbytes(s):
-        column = 0
-        for x in (s[i:i+8] for i in range(0, len(s), 8)):
-            try:
-                x = hex(int(x, 2))
-            except:
-                pass
-            print x,
-            column += len(x) + 1
-            if column > 120:
-                print '...'
-                column = 0
-        print
 
 def group_strings(tms, tdi, tdo, slice=slice, len=len):
     ''' NOTE: Strings are reversed -- s[0] is later in time than s[30]
@@ -53,7 +36,7 @@ def group_strings(tms, tdi, tdo, slice=slice, len=len):
     def mergenull(data):
         ''' Coalesce data/null together
         '''
-        later = data.next()
+        later = next(data)
         for item in data:
             if item[0] == 'data' and later[0] == 'null':
                 later[1] += item[1]
@@ -67,7 +50,7 @@ def group_strings(tms, tdi, tdo, slice=slice, len=len):
         ''' Coalesce data/data together, and move data from
             preceding null to align to byte boundaries if possible
         '''
-        later = data.next()
+        later = next(data)
         for item in data:
             if later[0] == 'data':
                 if item[0] == 'data':
@@ -90,13 +73,13 @@ def group_strings(tms, tdi, tdo, slice=slice, len=len):
         yield start
 
     join = ''.join
-    data = ([x,join(z[1] for z in y)] for (x,y) in itertools.groupby(itertools.izip(tms, tdi, tdo), key))
+    data = ([x,join(z[1] for z in y)] for (x,y) in itertools.groupby(zip(tms, tdi, tdo), key))
     data = null2data(data)
     data = mergenull(data)
     data = optimizedata(data)
     startx, stopx = itertools.tee(get_transitions(data))
-    stopx.next()
-    slices = (slice(x, y) for (x, y) in itertools.izip(startx, stopx))
+    next(stopx)
+    slices = (slice(x, y) for (x, y) in zip(startx, stopx))
     return [(tms[x], tdi[x], tdo[x]) for x in slices]
 
 def do_tdi_tdo(info, addwrite, addread, old_tdi):
@@ -123,7 +106,7 @@ def do_tdi_tdo(info, addwrite, addread, old_tdi):
         else:
             addwrite(hexconv(instructions[0]))
             addwrite(hexconv( (bytes-1) % 256))
-            addwrite(hexconv( (bytes-1) / 256))
+            addwrite(hexconv( (bytes-1) // 256))
         addwrite(tdi[bits:])
     if bits:
         addwrite(hexconv(instructions[1]))
@@ -138,11 +121,12 @@ def do_tms(info, addwrite, addread, old_tdi):
     tdival = info[-1][1][-1]
     while info and room:
         new_tms, new_tdi, new_tdo = info[-1]
-        if new_tms == '1' and new_tdi == 'x':
+        if 0 and new_tms == '1' and new_tdi == 'x':  # Debug this optimization.  Does not always work.
             if not tms:
                 info.pop()
                 tms.append(new_tms); tdi.append(new_tdi); tdo.append(new_tdo)
             break
+
         if (new_tms[-1] == '0' and (new_tdi[-1] != '*' or len(new_tdi) >= 16)) and tms:
             break
         mylen = min(room, len(new_tms))

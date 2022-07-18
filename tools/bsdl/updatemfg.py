@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 Extracted manufacturer's data from JEP standard.
 
@@ -43,13 +43,13 @@ def readdata(srcf=srcf):
     return mfgs
 
 def writedata(data, header=header, dstf=dstf):
-    f = open(dstf, 'wb')
-    print >> f, header
+    f = open(dstf, 'wt')
+    print(header, end='\n', file=f)
     for i, company in enumerate(data):
         bank, index = divmod(i, 126)
         code = bank * 128 + index + 1
         assert code & 0x7f not in (0, 0x7f)
-        print >> f, '{0:011b}   {1}'.format(code, company)
+        print('{0:011b}   {1}'.format(code, company), end='\n', file=f)
     f.close()
 
 if __name__ == '__main__':

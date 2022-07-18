@@ -2,8 +2,8 @@
 This module contains a mixin object to map JTAG strings into
 FTDI MPSSE commands.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 from .mpsse_jtag_commands import mpsse_jtag_commands
 from ...iotemplate.stringconvert import TemplateStrings

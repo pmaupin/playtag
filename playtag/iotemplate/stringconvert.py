@@ -12,8 +12,8 @@ designed for the digilent cable.  It is much shorter (1/3 the size) and
 thus perhaps a bit more understandable.  This code has now been generalized
 to be able to support the FTDI MPSSE.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 import itertools
 from .basexstring import BaseXString
@@ -98,7 +98,6 @@ class TemplateStrings(BaseXString):
         del strings, bitlens
 
         tdi_converter = self.get_tdi_converter()
-        izip = itertools.izip
         join = ''.join
 
         def tdi_combiner(tdi):
@@ -107,7 +106,7 @@ class TemplateStrings(BaseXString):
             '''
             yield first_string
             variables = tdi_converter(tdi)
-            for var, const in izip(slices, const_str):
+            for var, const in zip(slices, const_str):
                 yield variables[var]
                 yield const
         return tdi_combiner
@@ -137,7 +136,7 @@ class TemplateStrings(BaseXString):
         keep_start = [None]
         keep_stop = []
         extract = []
-        for inc, size in itertools.izip(constbits, varbits):
+        for inc, size in zip(constbits, varbits):
             source_index += inc
             if collected:
                 keep_start.append(source_index)
@@ -153,7 +152,7 @@ class TemplateStrings(BaseXString):
             if collected:
                 keep_stop.append(source_index)
         keep_stop.append(None)
-        keep = [slice(x,y) for (x,y) in itertools.izip(keep_start, keep_stop)]
+        keep = [slice(x,y) for (x,y) in zip(keep_start, keep_stop)]
         extract.reverse()
         return keep, extract
 

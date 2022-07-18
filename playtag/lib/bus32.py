@@ -29,8 +29,8 @@ writestring requires a string parameter (even number of characters) and
 all the other write methods can accept either a single integer value or
 a list of values.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 import collections
 import ctypes
@@ -53,7 +53,7 @@ class Bus32(object):
         self._big_endian = driver.big_endian
         self._struct = ctypes.BigEndianStructure if driver.big_endian else ctypes.LittleEndianStructure
         self._addr_align = driver.addr_align
-        self._max_words = driver.max_bytes / 4
+        self._max_words = driver.max_bytes // 4
         self._readsingle = driver.readsingle
         self._readmultiple = driver.readmultiple
         self._writesingle = driver.writesingle
@@ -73,9 +73,9 @@ class Bus32(object):
         addr_align = self._addr_align
         max_words = self._max_words
         while count:
-            chunklen = min(count, (-addr % addr_align) / size)
+            chunklen = min(count, (-addr % addr_align) // size)
             if not chunklen:
-                chunklen = count % (addr_align / size)
+                chunklen = count % (addr_align // size)
                 if chunklen != count:
                     chunklen = count - chunklen
             chunklen &= ~(chunklen-1)
@@ -209,7 +209,7 @@ class Bus32(object):
         '''
         chars = len(value)
         assert not chars & 1
-        length = chars / 2
+        length = chars // 2
         if length in (1, 2, 4) and self._big_endian and not (length-1) & addr:
             return self._writesingle(addr, length, int(value, 16))
         remap = self._getremap(addr, length, 1)
@@ -289,7 +289,7 @@ class Bus32(object):
         '''
         big_endian = self._big_endian
         if length in (1, 2, 4) and big_endian and not (length-1) & addr:
-            return '%%0%dx' % (length*2) % self._readsingle(addr, length).next()
+            return '%%0%dx' % (length*2) % next(self._readsingle(addr, length))
         if not length:
             return ''
         myclass = cache.get(length)

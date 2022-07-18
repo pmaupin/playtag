@@ -6,8 +6,8 @@ It relies on the jtagstates module to provide it state information.
 When you instantiate a JtagTemplate instance, you must pass it the
 function to use for JTAG transport.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 
 from .states import states as jtagstates

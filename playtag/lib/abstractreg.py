@@ -1,8 +1,8 @@
 '''
 Abstractions that allow easy access to hardware registers.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 class HexNum(long):
     def __new__(cls, value, size=32):
@@ -27,7 +27,7 @@ class Block(object):
         self.baseaddr = baseaddr + cls.offset
         self._read = access.read
         self._write = access.write
-        self._length = cls.size / 4
+        self._length = cls.size // 4
         return self
 
     def __getattr__(self, name):
@@ -137,7 +137,7 @@ class Register(object):
 
     def __repr__(self):
         fields = []
-        for x, y in self._fields.iteritems():
+        for x, y in self._fields.items():
             if not x[0].isupper():
                 continue
             try:

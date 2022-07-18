@@ -1,0 +1,16 @@
+# For SMT2 board, the following signals are connected:
+# TCK = ADBUS0
+# TDI = ADBUS1
+# TDO = ADBUS2
+# TMS = ADBUS3
+# OETMS = ADBUS5
+# OETDI = ADBUS6
+# OETCK = ADBUS7
+# GPIO0 = ACBUS0
+# GPIO1 = ACBUS1
+# GPIO2 = ACBUS5
+# OE0 = ACBUS2
+# OE1 = ACBUS3
+# OE2 = ACBUS4
+
+./xilinx_xvc.py ftdi 0 FTDI_GPIO_MASK=0xEb FTDI_GPIO_OUT=0xe8 FTDI_JTAG_FREQ=10000000

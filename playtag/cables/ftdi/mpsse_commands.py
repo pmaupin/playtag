@@ -1,8 +1,8 @@
 '''
 This module contains definitions for FTDI MPSSE commands.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 import re
 
@@ -49,4 +49,4 @@ class Commands(object):
     disable_adaptive_clocking = HexByte(0x97)
 
 if __name__ == '__main__':
-    print [(x, getattr(Commands, x)) for x in dir(Commands) if not x.startswith('_')]
+    print([(x, getattr(Commands, x)) for x in dir(Commands) if not x.startswith('_')])

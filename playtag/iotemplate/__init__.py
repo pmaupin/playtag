@@ -22,8 +22,8 @@ Currently, the file 'stringconvert.py' resides in this directory.  It can
 handle the current template conversion for digilent cables, and handles a
 lot of the template conversion for FTDI cables.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 
 class TDIVariable(object):

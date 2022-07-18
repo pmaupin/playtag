@@ -8,8 +8,8 @@ manipulation on the strings and other device-specific optimization.
 This class is subclassed -- it contains useful functions for performing
 this task, but is not complete.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 import re
 from ..iotemplate import TDIVariable

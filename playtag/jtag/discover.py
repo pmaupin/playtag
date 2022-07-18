@@ -1,7 +1,7 @@
 '''
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 
 import collections
@@ -16,7 +16,7 @@ class Chain(list):
     mindev_idcode = 2
     maxdev_idcode = 32
     maxdev_noid = 32
-    max_irbits = 10     # Max instruction length
+    max_irbits = 20     # Max instruction length
     min_irbits = 2      # At least INTEST, EXTEST, and BYPASS
     repeat_count = 4
 
@@ -68,7 +68,7 @@ class Chain(list):
     def read_ids(self):
         while 1:
             maxlen = 32 * self.mindev_idcode + self.maxdev_noid + 1
-            idinfo = JtagTemplate(self.jtagrw).readd(maxlen+33, tdi=1)().next()
+            idinfo = next(JtagTemplate(self.jtagrw).readd(maxlen+33, tdi=1)())
             if self.checkread(idinfo, maxlen, "IDCODE/BYPASS"):
                 break
             if self.mindev_idcode >= self.maxdev_idcode:
@@ -79,9 +79,9 @@ class Chain(list):
     def read_ir(self):
         max_irbits = self.max_irbits
         maxlen = self.numdevs * max_irbits + 1
-        ir = JtagTemplate(self.jtagrw).readi(maxlen + max_irbits + 1, tdi=1)().next()
+        ir = next(JtagTemplate(self.jtagrw).readi(maxlen + max_irbits + 1, tdi=1)())
         if not self.checkread(ir, maxlen, "IR"):
-            self.error("Unexpectedly long instruction register: %x" % binnum(ir))
+            self.error("Unexpectedly long instruction register: %s" % binnum(ir))
         return ir
 
     def checkread(self, code, maxlen, op):
@@ -135,7 +135,7 @@ class Chain(list):
         for i, x in enumerate(self.dev_ids):
             if x:
                 devdict[x].append(i)
-        dups = [x for x in devdict.itervalues() if len(x) > 1]
+        dups = [x for x in devdict.values() if len(x) > 1]
         kill = set()
         for test in ilengths:
             for dup in dups:
@@ -167,7 +167,7 @@ class Chain(list):
 
     def updateparts(self, captureinfo):
         assert len(self) == len(captureinfo)
-        for index, (part, capture) in enumerate(reversed(zip(self, captureinfo))):
+        for index, (part, capture) in enumerate(reversed(list(zip(self, captureinfo)))):
             length, value = capture
             oldstr = part.ir_capture
             part.ir_capture = ('{0:0%db}' % length).format(value)
@@ -175,7 +175,7 @@ class Chain(list):
                 continue
             if capture in part.possible_ir:
                 continue
-            print "Warning: Expected IR capture of %s for part at JTAG chain index %d:\n    %s" % (oldstr, index, str(part))
+            print("Warning: Expected IR capture of %s for part at JTAG chain index %d:\n    %s" % (oldstr, index, str(part)))
 
     def add_bypass_info(self):
         ''' Decorate each part with information about its location in the chain.

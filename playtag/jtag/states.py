@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 '''
 Develop a JTAG state transition graph that shows TMS values for
 transitions from any state to any other state.
@@ -20,8 +20,8 @@ or a boundary condition for the number of bits modulo some number.
 
 Run this module standalone for a list of state names and sequence values.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 
 from collections import defaultdict
@@ -140,7 +140,7 @@ def calcpaths():
 
     # Create initial set of transitions of length 1
     dict0 = {}
-    for start, x in transitions.iteritems():
+    for start, x in transitions.items():
         dict0[start] = subdict = {}
         for i, end in enumerate(x):
             undone.remove((start, end))
@@ -151,10 +151,10 @@ def calcpaths():
     dictn = dict0
     while undone:
         dictm = {}
-        for start, subdict in dictn.iteritems():
+        for start, subdict in dictn.items():
             newdict = {}
-            for mid, firstseq in subdict.iteritems():
-                for end, lastseq in dict0[mid].iteritems():
+            for mid, firstseq in subdict.items():
+                for end, lastseq in dict0[mid].items():
                     path = start, end
                     if path in undone:
                         undone.remove(path)
@@ -193,10 +193,10 @@ checkpaths()
 
 if __name__ == '__main__':
     for state1 in OneState.order:
-        print
+        print()
         for state2 in OneState.order[1:]:
-            print '%-10s -> %-10s: %s' % (state1, state2, ''.join(str(x) for x in state1[state2]))
+            print('%-10s -> %-10s: %s' % (state1, state2, ''.join(str(x) for x in state1[state2])))
 
     x = states.unknown.shift_dr
     x.pad(stride=16)
-    print x
+    print(x)

@@ -10,18 +10,18 @@ Call the connection function with a reference to a command processor.
 
 TODO: Add ability to have multiple connections to different cores.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 
 import re
 import select
 import socket
-import SocketServer
+import socketserver
 import collections
 
 def logger(what):
-    print what
+    print(what)
 
 def socketrw(socket, logger=None, readsize=2048):
     recv, send = socket.recv, socket.send
@@ -65,11 +65,11 @@ def socketrw(socket, logger=None, readsize=2048):
 
 def connection(cmdprocess, procname, address, run=True, logpackets=True, logger=logger, readsize=2048):
 
-    class RequestHandler(SocketServer.BaseRequestHandler):
+    class RequestHandler(socketserver.BaseRequestHandler):
         def setup(self):
             logger("Connected to %s:%s -- now serving %s" % (self.client_address + (procname,)))
             # Ask the network driver to send packets immediately
-            self.request.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self.request.setsockopt(socket.IPPROTO_TCP, socket.TCP_QUICKACK, 1)
 
         def finish(self):
             logger("Client disconnected.\n\nWaiting for %s connection on %s:%s  (Ctrl-C to exit)" %
@@ -79,7 +79,7 @@ def connection(cmdprocess, procname, address, run=True, logpackets=True, logger=
             read, write = socketrw(self.request, logpackets and logger or None, readsize)
             cmdprocess(read, write)
 
-    server = SocketServer.TCPServer(('', address), RequestHandler)
+    server = socketserver.TCPServer(('', address), RequestHandler)
 
     if run:
         logger("Waiting for %s connection on %s:%s  (Ctrl-C to exit)" %

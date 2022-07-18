@@ -8,7 +8,7 @@ from bus32 import Bus32
 exhaustive = False
 randomized = True
 
-def run(izip=itertools.izip, islice=itertools.islice):
+def run(zip=zip, islice=itertools.islice):
 
     randomdata = range(256)
     if randomized:
@@ -65,7 +65,7 @@ def run(izip=itertools.izip, islice=itertools.islice):
             write = self.writesingle
             addr = itertools.count(addr, wordsize)
             data = itertools.islice(data, offset, offset + length)
-            for addr, data in itertools.izip(addr, data):
+            for addr, data in zip(addr, data):
                 write(addr, wordsize, data)
 
 
@@ -82,16 +82,16 @@ def run(izip=itertools.izip, islice=itertools.islice):
                 assert expected == actual, (expected, actual, starta, length)
             return
         msb, lsb = (0, 1) if bigendian else (1, 0)
-        expected = [x * 256 + y for (x,y) in izip(islice(expected, msb, None, 2), islice(expected, lsb, None, 2))]
-        actual = list(bus.readhalf(starta, length/2))
+        expected = [x * 256 + y for (x,y) in zip(islice(expected, msb, None, 2), islice(expected, lsb, None, 2))]
+        actual = list(bus.readhalf(starta, length//2))
         assert expected == actual, (expected, actual, starta, length)
         if length & 2:
             if length == 2:
                 actual = [bus.readhalf(starta)]
                 assert expected == actual, (expected, actual, starta, length)
             return
-        expected = [x * 65536 + y for (x,y) in izip(islice(expected, msb, None, 2), islice(expected, lsb, None, 2))]
-        actual = list(bus.read(starta, length/4))
+        expected = [x * 65536 + y for (x,y) in zip(islice(expected, msb, None, 2), islice(expected, lsb, None, 2))]
+        actual = list(bus.read(starta, length//4))
         assert expected == actual, (expected, actual, starta, length)
         if length == 4:
             actual = [bus.read(starta)]
@@ -118,7 +118,7 @@ def run(izip=itertools.izip, islice=itertools.islice):
                 assert expected == actual, (expected, actual, starta, length)
             return
         msb, lsb = (0, 1) if bigendian else (1, 0)
-        data = [x * 256 + y for (x,y) in izip(islice(data, msb, None, 2), islice(data, lsb, None, 2))]
+        data = [x * 256 + y for (x,y) in zip(islice(data, msb, None, 2), islice(data, lsb, None, 2))]
         driver.clear()
         bus.writehalf(starta, data)
         actual = sorted(driver)
@@ -130,7 +130,7 @@ def run(izip=itertools.izip, islice=itertools.islice):
                 actual = sorted(driver)
                 assert expected == actual, (expected, actual, starta, length)
             return
-        data = [x * 65536 + y for (x,y) in izip(islice(data, msb, None, 2), islice(data, lsb, None, 2))]
+        data = [x * 65536 + y for (x,y) in zip(islice(data, msb, None, 2), islice(data, lsb, None, 2))]
         driver.clear()
         bus.write(starta, data)
         actual = sorted(driver)

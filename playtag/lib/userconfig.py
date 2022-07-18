@@ -19,11 +19,11 @@ class UserConfig(object):
             if not os.path.exists(fname):
                 raise SystemExit("\nCannot find configuration file %s\n" % fname)
         try:
-            f = open(fname, 'rb')
-            exec f in globals(), vars(self)
+            f = open(fname, 'rt')
+            exec(f, globals(), vars(self))
             f.close()
         except:
-            print "\nError processing %s:\n" % fname
+            print("\nError processing %s:\n" % fname)
             raise
 
     def readargs(self, args=None, parseargs=False):
@@ -58,7 +58,7 @@ class UserConfig(object):
         try:
             self.loadfile(fname)
             loaded = True
-        except SystemExit, exc:
+        except SystemExit as exc:
             loaded = False
         args, options = self.readargs(args)
         if not options and not loaded:
@@ -71,7 +71,7 @@ class UserConfig(object):
         except TypeError:
             pass
         try:
-            other = other.iteritems()
+            other = other.items()
         except AttributeError:
             pass
         for name, value in other:
@@ -104,7 +104,7 @@ class UserConfig(object):
         raise SystemExit('\nERROR: %s\n\n%s' % (str(errmsg), self.dump()))
 
     def deferred_error(self):
-        print "\n\nError opening cable driver (details below)\n%s\n" % self.dump()
+        print("\n\nError opening cable driver (details below)\n%s\n" % self.dump())
 
     def getcable(self):
         for prefix in ('playtag.cables.', ''):

@@ -10,8 +10,8 @@ There are a lot of crap BSDL files out there, and this parser
 attempts to wade through the crap and generate reasonable results
 where possible.
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 
 import re
@@ -188,7 +188,7 @@ class FileParser(object):
         except KeyboardInterrupt:
             raise
         except:
-            print "Retrying", fname
+            print("Retrying", fname)
             self.run(fname, True)
             self.warnings.append((1, "Invalid comments before entity"))
             parsed_ok = False

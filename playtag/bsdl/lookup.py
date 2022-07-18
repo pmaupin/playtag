@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 Look up a JTAG ID in the database
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 
 import os
@@ -14,7 +14,7 @@ def readfile(fname):
     ''' Strip #-delimited comments, and then split each
         line into tokens, and yield each line.
     '''
-    f = open(fname, 'rb')
+    f = open(fname, 'rt')
     data = f.read()
     f.close()
     for line in data.splitlines():
@@ -84,7 +84,7 @@ class PartInfo(object):
     def addmfgs(cls, mfginfo, int=int):
         mfgcache = cls.mfgcache
         for line in (iter(x) for x in mfginfo):
-            index = int(line.next(), 2)
+            index = int(next(line), 2)
             mfgcache[index] = ' '.join(line)
 
     @classmethod
@@ -134,4 +134,4 @@ PartInfo.initcaches()
 if __name__ == '__main__':
     import sys
     for item in sys.argv[1:]:
-        print '%s -- %s' % (item, str(PartInfo(item)))
+        print('%s -- %s' % (item, str(PartInfo(item))))

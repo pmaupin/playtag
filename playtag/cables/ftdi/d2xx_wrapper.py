@@ -1,8 +1,19 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
+'''
+This module wraps the FTDI MPSSE driver C library
+
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
+'''
 import sys
 import os
 import ctypes
-from types import MethodType
+try:
+    from functools import partialmethod
+except ImportError:
+    partialmethod = None
+    from types import MethodType
+
 
 windows = 'win' in sys.platform
 
@@ -215,9 +226,9 @@ def FixClass(FT, isinstance=isinstance, list=list, getattr=getattr, setattr=seta
     ''' Could use a metaclass, but this is almost too simple, and only
         one class needs the treatment.
     '''
-    funcs = [x for x in vars(FT).iteritems() if isinstance(x[1], func)]
+    funcs = [x for x in vars(FT).items() if isinstance(x[1], func)]
     for mydict in (StatusTypes, DeviceTypes):
-        for value, name in mydict.iteritems():
+        for value, name in mydict.items():
             setattr(FT, name[3:], value)
     STATUS = FT.ULONG
     for attrname, value in funcs:
@@ -230,7 +241,7 @@ def FixClass(FT, isinstance=isinstance, list=list, getattr=getattr, setattr=seta
         libfunc.restype = STATUS
         libfunc.errcheck = errcheck
         if ismethod:
-            libfunc = MethodType(libfunc, None, FT)
+            libfunc = partialmethod(libfunc) if partialmethod else MethodType(libfunc, None, FT)
         setattr(FT, attrname, libfunc)
 
 FixClass(FT)

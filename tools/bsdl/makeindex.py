@@ -1,14 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 '''
 Reads allchips.txt (output from parseall.py) and creates ../../playtag/bsdl/data/partindex.txt
 
-Copyright (C) 2011 by Patrick Maupin.  All rights reserved.
-License information at: http://playtag.googlecode.com/svn/trunk/LICENSE.txt
+Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
+License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 
 import re
-from itertools import izip
 from collections import defaultdict
 
 inp_fname = 'allchips.txt'
@@ -106,8 +105,8 @@ packages = set('''
 def prune(tree, prefix):
     if None in tree:
         return ()
-    result = dict((x, prune(y, prefix+x)) for (x,y) in tree.iteritems())
-    if not max(len(x) for x in result.itervalues()):
+    result = dict((x, prune(y, prefix+x)) for (x,y) in tree.items())
+    if not max(len(x) for x in result.values()):
         result = set(result)
         if len(prefix) > 3 and (result & packages):
             result = ()
@@ -115,7 +114,7 @@ def prune(tree, prefix):
 
 def untree(tree):
     if isinstance(tree, dict):
-        for x,y in tree.iteritems():
+        for x,y in tree.items():
             for y in untree(y):
                 yield x+y
     elif tree:
@@ -137,9 +136,9 @@ def minprefixes(names, required=4):
 def combine_name(namelist, splitter=splitter):
     nametree = {}
     if 0:
-        print common_prefix(namelist), namelist
-        print '     ', [[x for x in splitter(x) if x] for x in namelist]
-        print
+        print(common_prefix(namelist), namelist)
+        print('     ', [[x for x in splitter(x) if x] for x in namelist])
+        print()
     if 1:
         for name in namelist:
             d = nametree
@@ -173,9 +172,9 @@ def checkpart(items, item_names='ilength icapture idcode'.split()):
         if len(value) > 1:
             result.append((name, value))
     if result:
-        print 'Removing collisions', nm
+        print('Removing collisions', nm)
         for stuff in result:
-            print '    %s = %s' % stuff
+            print('    %s = %s' % stuff)
         return None
     result = SynthesizedPart()
     result.instruction_length, = il
@@ -192,7 +191,7 @@ def check_collisions(source):
         for idcode in expand_x(part.idcode_register):
             bigdict[idcode].append(part)
     collisions = defaultdict(set)
-    for stuff in bigdict.itervalues():
+    for stuff in bigdict.values():
         if len(stuff) > 1:
             for part in stuff:
                 collisions[part].update(stuff)
@@ -240,17 +239,17 @@ def strip_silly(source):
             part.instruction_capture = icapture
             part.instruction_length = ilength
         else:
-            print "Ignoring silly part", idcode, part.name, part.instruction_length, part.instruction_capture, part.bsdl_file_name
+            print("Ignoring silly part", idcode, part.name, part.instruction_length, part.instruction_capture, part.bsdl_file_name)
             silly += 1
             continue
         numx = idcode.count('x')
         withx.append((numx, part))
         total += 1 << numx
-    print
-    print "Ignored %s silly parts" % silly
+    print()
+    print("Ignored %s silly parts" % silly)
     withx.sort()
-    print "Largest number of x's in a non-silly ID code --", withx[-1][0]
-    print "%s part records covering %s possible ID Codes" % (len(withx), total)
+    print("Largest number of x's in a non-silly ID code --", withx[-1][0])
+    print("%s part records covering %s possible ID Codes" % (len(withx), total))
     assert total < 200000, total   # Would take too long
     return [x[1] for x in withx]
 
@@ -281,12 +280,12 @@ def dump(parts, fname=out_fname):
     f = open(fname, 'wb')
     for part in parts:
         assert part.instruction_length == len(part.instruction_capture)
-        print >> f, '%s  %-20s %s' % (part.idcode_register, part.instruction_capture, part.name.lower())
+        print('%s  %-20s %s' % (part.idcode_register, part.instruction_capture, part.name.lower()), file=f)
     f.close()
 
 if __name__ == '__main__':
     parts = readfile()
     parts = strip_silly(parts)
     parts = check_collisions(parts)
-    print '%s records after removing redundancies' % len(parts)
+    print('%s records after removing redundancies' % len(parts))
     dump(parts)

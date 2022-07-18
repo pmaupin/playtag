@@ -1,0 +1,30 @@
+# This file belongs in /etc/udev/rules.d/52-ftdi-jtag.rules
+
+# To figure out what is happening with devices, you can collect info something like this:
+#    udevadm info -a -p `udevadm info -q path -n /dev/ttyUSB0` | less
+
+# To reload rules:
+# udevadm control --reload-rules && udevadm trigger
+
+# Allow userland programs to bind/unbind FTDI devices
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", MODE="666", RUN+="/bin/sh -c 'chmod 222 /sys/bus/usb/drivers/ftdi_sio/*bind'"
+
+### Example of how to unbind port A on any specific FTDI device, so it can be used directly by user program
+#ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{manufacturer}=="YourMfgHere", ATTRS{bInterfaceNumber}=="00", RUN+="/bin/sh -c 'echo $kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'"
+
+### Example of how to unbind second port if desired, on a specific device and serial number
+#ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{manufacturer}=="YourMfgHere", ATTRS{serial}=="YourSerialNumber", ATTRS{bInterfaceNumber}=="01", RUN+="/bin/sh -c 'echo $kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'"
+
+# Unbind digilent cable so it can be used directly by user program
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{manufacturer}=="Digilent", RUN+="/bin/sh -c 'echo $kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'"
+
+# Other way digilent cable might be numbered
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1443", MODE="666", RUN+="/bin/sh -c 'chmod 222 /sys/bus/usb/drivers/ftdi_sio/*bind'"
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="1443", RUN+="/bin/sh -c 'echo $kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'"
+
+
+# Unbind xilinx board so it can be used directly by user program
+ACTION=="add", SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{manufacturer}=="Xilinx", RUN+="/bin/sh -c 'echo $kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'"
+
+# Allow user control of Cypress USB hub, and turn off downstream power on it
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="04b4", ATTR{idProduct}=="6572", MODE="666", RUN+="/usr/sbin/uhubctl -n 04b4 -a 0"
