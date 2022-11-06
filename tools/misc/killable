@@ -1,0 +1,203 @@
+#! /usr/bin/env python3
+"""
+
+This script, killable, allows you to daemonize any Linux command line tool, and make it killable by anyone on the system.
+
+It fills an ad hoc gap not quite covered by things like supervisord.  Instead of definining tasks in a centralized fashion,
+anybody can run killable with any command line, and anybody else can kill the results.
+
+Options:
+
+    killable kill <PID>  -- kills the process
+    killable list        -- shows a list of currently running killable processes
+    killable list <PID>  -- dumps the stdout and stderr for the process
+    killable clean       -- Removes all stdout and stderr of processes with no pidfiles
+    killable <any command line>  -- daemonizes itself, and runs the command
+
+Files used:
+    /tmp/killable/<PID>.pid    -- pid file with command line.  Removing this kills the process.  Removed when done.
+    /tmp/killable/<PID>.stdout -- stdout from process.  Left alone for debugging purposes until clean.
+    /tmp/killable/<PID>.stdout -- stdout from process.  Left alone for debugging purposes until clean.
+"""
+
+import sys
+import os
+import subprocess
+import time
+
+mydir = '/tmp/killable'
+
+def showhelp():
+    raise SystemExit(__doc__)
+
+def get_paths(pid):
+    """ Return all our paths
+    """
+    return (os.path.join(mydir, '%s.%s' % (pid, x)) for x in ('pid stdout stderr'.split()))
+
+def display(msg):
+    """  Just dump a few lines to the console, or invoke a less-like substance for more lines
+    """
+    if not isinstance(msg, str):
+        msg = '\n'.join(msg)
+    if len(msg.splitlines()) > 25:
+        import pydoc
+        pydoc.pager(msg)
+        raise SystemExit
+    raise SystemExit(msg)
+
+def do_kill(argv):
+    #TODO:  Wait to see if process killed???
+    pids = argv[2:]
+    if not pids or not all(x.isdigit() for x in pids):
+        return showhelp()
+    print()
+    for pid in pids:
+        mypath, _, _ = get_paths(pid)
+        try:
+            os.remove(mypath)
+        except FileNotFoundError:
+            print('PID file %s did not exist' % mypath)
+        else:
+            print('PID file %s removed' % mypath)
+    raise SystemExit(0)
+
+def do_list_all():
+    #TODO: Make this fancier later, sort options?  File dates?  Test for still running?
+    files = (os.path.join(mydir, fname) for fname in os.listdir(mydir))
+    files = (x for x in files if x.endswith('.pid'))
+    results = []
+    for fname in files:
+        pid = fname.rsplit('/', 1)[-1].split('.')[0]
+        with open(fname, 'rt') as f:
+            results.append('%s -- %s' % (pid, f.read().rstrip()))
+    return display(results)
+
+def do_list_one(argv):
+    if len(argv) != 3 or not argv[2].isdigit():
+        return showhelp()
+
+    results = []
+    for path in get_paths(argv[2]):
+        results.append('\n>>>>>>> %s <<<<<<<\n' % path)
+        try:
+            with open(path, 'rt') as f:
+                results.append(f.read())
+        except FileNotFoundError:
+            results.append(' ******* FILE NOT FOUND *******')
+    results.append('')
+    return display(results)
+
+def do_clean(argv):
+    if len(argv) != 2:
+        return showhelp()
+    files = set(os.listdir(mydir))
+    for fname in files:
+        if fname.endswith(('.stderr', '.stdout')) and '%s.%s' % (fname.rsplit('.', 1)[0], 'pid') not in files:
+            os.remove(os.path.join(mydir, fname))
+
+def update_fd(update_this, from_this, close_source=False, inheritable=True):
+    os.dup2(from_this.fileno(), update_this.fileno(), inheritable)
+    if close_source:
+        from_this.close()
+    return update_this
+
+def daemonize():
+    old_mask = os.umask(0)
+    os.makedirs(mydir, exist_ok=True)
+
+    # Start off with top process names
+    _, stdout_path, stderr_path = get_paths(os.getpid())
+    old_stdout = update_fd(open(os.devnull, 'w'), sys.stdout, inheritable=True)
+    update_fd(sys.stdout, open(stdout_path, 'w'), close_source=True, inheritable=True)
+    update_fd(sys.stderr, open(stderr_path, 'w'), close_source=True, inheritable=True)
+    update_fd(sys.stdin, open(os.devnull, 'r'), close_source=True, inheritable=True)
+
+    os.umask(old_mask)
+
+    pid = os.fork()
+    if pid > 0:
+        max_delay = time.time() + 2
+        while os.path.exists(stdout_path) and time.time() < max_delay:
+            time.sleep(0.1)
+        os._exit(0)
+    os.setsid()
+    pid = os.fork()
+    if pid > 0:
+        os._exit(0)
+
+    return old_stdout, stdout_path, stderr_path
+
+def run_service(argv, original_stdout, original_stdout_path, original_stderr_path):
+    proc = subprocess.Popen(argv)
+    proc.poll()
+    pid = proc.pid
+    if proc.returncode is not None:
+        print('Process terminated with code %s\n    See %s and %s' % (proc.returncode, original_stdout_path, original_stderr_path),
+              file=original_stdout)
+        return
+
+    print('\nPID %s:\n    %s\n' % (pid, ' '.join(argv)), file=original_stdout)
+    original_stdout.close()
+
+    pid_path, stdout_path, stderr_path = get_paths(pid)
+    os.rename(original_stdout_path, stdout_path)
+    os.rename(original_stderr_path, stderr_path)
+    with open(pid_path, 'w') as f:
+        print(' '.join(argv), file=f)
+
+    while proc.poll() is None and os.path.exists(pid_path):
+        time.sleep(2)
+
+    try:
+        os.remove(pid_path)
+    except FileNotFoundError:
+        time.sleep(1)
+        if proc.poll() is None:
+            sys.stderr.write('\nPID file %s already removed\n' % pid_path)
+
+    info = proc.returncode is not None and 'completed'
+    if not info:
+        proc.terminate()
+        info = 'terminated'
+    delay = time.time() + 10
+    while proc.poll() is None and time.time() < delay:
+        time.sleep(0.2)
+
+    if proc.returncode is None:
+        proc.kill()
+        info = 'killed'
+        returncode = ''
+    else:
+        returncode = ' with return code %s' % proc.returncode
+
+    raise SystemExit('\n\nProcess %s%s.\n' % (info, returncode))
+
+def housekeeping(argv):
+    if len(argv) < 2:
+        showhelp()
+
+    if argv[1] == 'kill':
+        return do_kill(argv)
+
+    if argv[1] == 'list':
+        if len(argv) == 2:
+            return do_list_all()
+        else:
+            return do_list_one(argv)
+
+    if argv[1] == 'clean':
+        return do_clean(argv)
+
+    raise SystemError('How the heck did we get here?')
+
+def main(argv):
+    if len(argv) < 2 or argv[1] in ('kill list clean'.split()):
+        housekeeping(argv)
+    else:
+        run_service(argv[1:], *daemonize())
+
+
+if __name__ == '__main__':
+    main(sys.argv)
+    raise SystemExit
