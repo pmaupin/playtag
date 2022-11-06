@@ -1,4 +1,7 @@
 #! /usr/bin/env python3
+
+# Copyright (c) 2009-2022 Patrick Maupin  MIT License
+
 """
 
 This script, killable, allows you to daemonize any Linux command line tool, and make it killable by anyone on the system.
@@ -39,7 +42,7 @@ def display(msg):
     """  Just dump a few lines to the console, or invoke a less-like substance for more lines
     """
     if not isinstance(msg, str):
-        msg = '\n'.join(msg)
+        msg = '\n'.join(msg) + '\n'
     if len(msg.splitlines()) > 25:
         import pydoc
         pydoc.pager(msg)
@@ -85,10 +88,11 @@ def do_list_one(argv):
                 results.append(f.read())
         except FileNotFoundError:
             results.append(' ******* FILE NOT FOUND *******')
-    results.append('')
     return display(results)
 
 def do_clean(argv):
+    """ Remove all stdout and stderr files with no corresponding pid file
+    """
     if len(argv) != 2:
         return showhelp()
     files = set(os.listdir(mydir))
@@ -97,14 +101,19 @@ def do_clean(argv):
             os.remove(os.path.join(mydir, fname))
 
 def update_fd(update_this, from_this, close_source=False, inheritable=True):
+    """  Update the file descriptor in one stream from the descriptor in a source stream
+    """
     os.dup2(from_this.fileno(), update_this.fileno(), inheritable)
     if close_source:
         from_this.close()
     return update_this
 
 def daemonize():
+    """  Take care of all our file stuff, and daemonize the process
+    """
     old_mask = os.umask(0)
     os.makedirs(mydir, exist_ok=True)
+    os.umask(old_mask)
 
     # Start off with top process names
     _, stdout_path, stderr_path = get_paths(os.getpid())
@@ -112,8 +121,6 @@ def daemonize():
     update_fd(sys.stdout, open(stdout_path, 'w'), close_source=True, inheritable=True)
     update_fd(sys.stderr, open(stderr_path, 'w'), close_source=True, inheritable=True)
     update_fd(sys.stdin, open(os.devnull, 'r'), close_source=True, inheritable=True)
-
-    os.umask(old_mask)
 
     pid = os.fork()
     if pid > 0:
@@ -143,6 +150,7 @@ def run_service(argv, original_stdout, original_stdout_path, original_stderr_pat
     pid_path, stdout_path, stderr_path = get_paths(pid)
     os.rename(original_stdout_path, stdout_path)
     os.rename(original_stderr_path, stderr_path)
+
     with open(pid_path, 'w') as f:
         print(' '.join(argv), file=f)
 
@@ -153,7 +161,7 @@ def run_service(argv, original_stdout, original_stdout_path, original_stderr_pat
         os.remove(pid_path)
     except FileNotFoundError:
         time.sleep(1)
-        if proc.poll() is None:
+        if proc.poll() is not None:
             sys.stderr.write('\nPID file %s already removed\n' % pid_path)
 
     info = proc.returncode is not None and 'completed'
