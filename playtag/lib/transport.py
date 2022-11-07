@@ -14,6 +14,7 @@ Copyright (C) 2011, 2022 by Patrick Maupin.  All rights reserved.
 License information at: https://github.com/pmaupin/playtag/blob/master/LICENSE.txt
 '''
 
+import sys
 import re
 import select
 import socket
@@ -23,6 +24,7 @@ import time
 
 def logger(what):
     print(what)
+    sys.stdout.flush()
 
 def socketrw(socket, logger=None, readsize=2048):
     recv, send = socket.recv, socket.send
@@ -101,9 +103,12 @@ def connection(cmdprocess, procname, address, run=True, logpackets=True, logger=
             server.handle_request()
         except KeyboardInterrupt:
             if not server.server_closed:
-                server.socket.shutdown(socket.SHUT_RDWR)
-                server.socket.close()
-                server.server_closed = True
+                try:
+                    server.socket.shutdown(socket.SHUT_RDWR)
+                    server.socket.close()
+                    server.server_closed = True
+                except:
+                    pass
             logger("\nKeyboard Interrupt received; exiting...\n")
             break
 

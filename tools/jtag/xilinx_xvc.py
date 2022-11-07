@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+import sys
 import ctypes
 import time
 
@@ -162,15 +163,16 @@ def cmdproc(read, write):
             prev, now = now, time.time()
             print('DLY: %0.1f' % (now-prev), file=dumpf)
             print('NUM: %d' % numbits, file=dumpf)
-            printbytes('TMS', data[headersize:headersize + numbytes])
-            printbytes('TDI', data[headersize + numbytes:headersize + 2*numbytes])
-            printbytes('TDO', result)
+            printbytes('TMS', data[headersize:headersize + numbytes], file=dumpf)
+            printbytes('TDI', data[headersize + numbytes:headersize + 2*numbytes], file=dumpf)
+            printbytes('TDO', result, file=dumpf)
             print('', file=dumpf)
             dumpf.flush()
         data = data[headersize + 2 * numbytes:]
     connecttime += time.time()
     print('Connection finished: time = %0.1f reading = %0.1f writing = %0.1f processing = %0.1f, jtag = %0.1f' %
           (connecttime, readtime, writetime, connecttime-readtime-writetime, processtime))
+    sys.stdout.flush()
 
 config = basic_startup()
 

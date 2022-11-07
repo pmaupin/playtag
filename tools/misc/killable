@@ -26,6 +26,7 @@ Files used:
 import sys
 import os
 import subprocess
+import signal
 import time
 
 mydir = '/tmp/killable'
@@ -60,9 +61,10 @@ def do_kill(argv):
         try:
             os.remove(mypath)
         except FileNotFoundError:
-            print('PID file %s did not exist' % mypath)
+            print('PID file %s did not exist.' % mypath)
         else:
-            print('PID file %s removed' % mypath)
+            print('PID file %s removed.' % mypath)
+    print()
     raise SystemExit(0)
 
 def do_list_all():
@@ -136,11 +138,17 @@ def daemonize():
     return old_stdout, stdout_path, stderr_path
 
 def run_service(argv, original_stdout, original_stdout_path, original_stderr_path):
-    proc = subprocess.Popen(argv)
+    try:
+        proc = subprocess.Popen(argv)
+    except:
+        print('Could not start process.\n    See files %s and %s for details.' %
+              (original_stdout_path, original_stderr_path), file=original_stdout)
+        raise
     proc.poll()
     pid = proc.pid
     if proc.returncode is not None:
-        print('Process terminated with code %s\n    See %s and %s' % (proc.returncode, original_stdout_path, original_stderr_path),
+        print('Process terminated with code %s.\n    See files %s and %s for details.' %
+              (proc.returncode, original_stdout_path, original_stderr_path),
               file=original_stdout)
         return
 
@@ -166,9 +174,15 @@ def run_service(argv, original_stdout, original_stdout_path, original_stderr_pat
 
     info = proc.returncode is not None and 'completed'
     if not info:
+        proc.send_signal(signal.SIGINT)
+        delay = time.time() + 5
+        while proc.poll() is None and time.time() < delay:
+            time.sleep(0.2)
+        info = proc.returncode is not None and 'interrupted'
+    if not info:
         proc.terminate()
         info = 'terminated'
-    delay = time.time() + 10
+    delay = time.time() + 5
     while proc.poll() is None and time.time() < delay:
         time.sleep(0.2)
 
