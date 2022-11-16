@@ -4,23 +4,25 @@
 
 """
 
-This script, killable, allows you to daemonize any Linux command line tool, and make it killable by anyone on the system.
+This script, qi, is for controlling the life force of server processes.
+
+It allows you to daemonize any Linux command line tool, and make it killable by anyone on the system.
 
 It fills an ad hoc gap not quite covered by things like supervisord.  Instead of definining tasks in a centralized fashion,
-anybody can run killable with any command line, and anybody else can kill the results.
+anybody can run qi with any command line, and anybody else can kill the results.
 
 Options:
 
-    killable kill <PID>  -- kills the process
-    killable list        -- shows a list of currently running killable processes
-    killable list <PID>  -- dumps the stdout and stderr for the process
-    killable clean       -- Removes all stdout and stderr of processes with no pidfiles
-    killable <any command line>  -- daemonizes itself, and runs the command
+    qi kill <PID>  -- kills the process
+    qi list        -- shows a list of currently running qi processes
+    qi list <PID>  -- dumps the stdout and stderr for the process
+    qi clean       -- Removes all stdout and stderr of processes with no pidfiles
+    qi <any command line>  -- daemonizes itself, and runs the command
 
 Files used:
-    /tmp/killable/<PID>.pid    -- pid file with command line.  Removing this kills the process.  Removed when done.
-    /tmp/killable/<PID>.stdout -- stdout from process.  Left alone for debugging purposes until clean.
-    /tmp/killable/<PID>.stdout -- stdout from process.  Left alone for debugging purposes until clean.
+    /tmp/qi/<PID>.pid    -- pid file with command line.  Removing this kills the process.  Removed when done.
+    /tmp/qi/<PID>.stdout -- stdout from process.  Left alone for debugging purposes until clean.
+    /tmp/qi/<PID>.stdout -- stdout from process.  Left alone for debugging purposes until clean.
 """
 
 import sys
@@ -29,7 +31,7 @@ import subprocess
 import signal
 import time
 
-mydir = '/tmp/killable'
+mydir = '/tmp/qi'
 
 def showhelp():
     raise SystemExit(__doc__)

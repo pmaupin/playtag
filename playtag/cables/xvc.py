@@ -19,7 +19,7 @@ profile = False
 
 class XvcDefaults(object):
     def __init__(self, cable_name):
-        cable_name = cable_name.split()
+        cable_name = cable_name.split(':')
         if len(cable_name) > 2:
             raise SystemExit('Invalid cable name: %s' % ' '.join(cable_name))
         self.XVC_HOST_NAME = 'localhost' if not cable_name else cable_name[0]
@@ -37,6 +37,7 @@ class Jtagger(TemplateStrings.mix_me_in()):
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         hostport = (config.XVC_HOST_NAME, config.XVC_PORT_NUM)
         print('\nConnecting to %s:%s...' % hostport)
+        print(config)
         try:
             sock.connect(hostport)
         except ConnectionRefusedError:
@@ -86,6 +87,6 @@ class Jtagger(TemplateStrings.mix_me_in()):
 
 def showdevs():
     print('''
-The xvc cable driver requires a hostname and an optional
-port number.
+The xvc cable driver requires a hostname, optionally followed
+by a colon and a port number.  The default port number is 2542.
 ''')

@@ -3,7 +3,7 @@ import sys
 import ctypes
 import time
 
-from playtag.lib.userconfig import basic_startup
+from playtag.lib.userconfig import UserConfig, basic_startup
 from playtag.jtag.discover import Chain
 from playtag.lib.transport import connection
 from playtag.iotemplate import IOTemplate, TDIVariable
@@ -174,6 +174,8 @@ def cmdproc(read, write):
           (connecttime, readtime, writetime, connecttime-readtime-writetime, processtime))
     sys.stdout.flush()
 
+# Default the socket to standard Xilinx XVC address, then get our cable
+UserConfig.SOCKET_ADDRESS = 2542
 config = basic_startup()
 
 if config.SHOW_CONFIG:
@@ -183,4 +185,4 @@ print(Chain(config.driver))
 
 dumpf = config.LOG_PACKETS and open('log_xvc.txt', 'wt')
 now = time.time()
-connection(cmdproc, 'xvc', 2542, readsize=4096, logpackets=config.LOG_PACKETS)
+connection(cmdproc, 'xvc', config.SOCKET_ADDRESS, readsize=4096, logpackets=config.LOG_PACKETS)
