@@ -63,7 +63,9 @@ class Jtagger(TemplateStrings.mix_me_in()):
         numbits = len(tms)
         if not numbits:
             return
-        assert 0 < numbits == len(tdi) <= self.maxbits
+        if numbits > self.maxbits:
+            return self.assemble_chunks(tms, tdi, usetdo)
+        assert numbits == len(tdi)
         numchars = (numbits + 7) // 8
         cmd = b'shift:%s%s%s' % (
             numbits.to_bytes(4, 'little'),
@@ -84,6 +86,17 @@ class Jtagger(TemplateStrings.mix_me_in()):
             elif len(data) > numbits:
                 data = data[len(data)-numbits:]
             return data
+
+    def assemble_chunks(self, tms, tdi, usetdo):
+        '''  Too long to do in a single transaction,
+             so do multiple transactions.
+        '''
+        chunksize = self.maxbits
+        result = []
+        for offset in reversed(range(0, len(tms), chunksize)):
+            result.append(self(tms[offset:offset+chunksize], tdi[offset:offset+chunksize], usetdo))
+        if usetdo:
+            return ''.join(reversed(result))
 
 def showdevs():
     print('''

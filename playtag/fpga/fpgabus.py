@@ -90,6 +90,10 @@ class BusDriver(dict):
             cmd.loop()
             rw(size*8, tdi=data, adv=False)
             cmd.endloop(length)
+            if write:
+                # Need at least one bit to get past delay cell in the FPGA
+                # but 8 seem to work better.  Probably an RTL bug.
+                cmd.writed(8,'11111111', adv=False)
 
         maxwrite = 256 // size
         multiple, single = divmod(length, maxwrite)
@@ -99,10 +103,6 @@ class BusDriver(dict):
             cmd.endloop(multiple)
         if single:
             innerloop(single)
-        if write:
-            # Need at least one bit to get past delay cell in the FPGA
-            # but 8 seem to work better.  Probably an RTL bug.
-            cmd.writed(8,'11111111', adv=False)
 
         # A single loop is easy
         loops = multiple + bool(single)
