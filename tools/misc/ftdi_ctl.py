@@ -38,7 +38,7 @@ def FindFTDI():
 
     for device in list(subdevices):
         vid, pid = device.readit.idVendor, device.readit.idProduct
-        if vid == '0403' and pid in ('6010', '6011', '6014'):
+        if vid == '0403' and pid in ('6010', '6011', '6014', '6001'):
             manufacturer, product, serial = device.readit.manufacturer, device.readit.product, device.readit.serial
             for index, subdevice in enumerate(sorted(subdevices[device])):
                 assert subdevice.readit.interface == product
@@ -49,8 +49,7 @@ def FindFTDI():
                 obj.manufacturer = manufacturer
                 obj.product = product + (' ' + index if index else index)
                 obj.serialnum = serial + ('_' + index if index else index) if serial else ''
-                obj.vid = vid
-                obj.pid = pid
+                obj.vidpid = vid + '/' + pid
                 result.append(obj)
 
     for index, obj in enumerate(result):
@@ -94,10 +93,17 @@ def binder(function, key):
 
 def go(argv):
     if len(argv) <= 1:
-        devices = FindFTDI()
-        for obj in devices:
-            print("%2s %-14s %-8s %-10s %-15s '%s'" %
-                  (obj.index, obj.devnum, obj.tty, obj.manufacturer, obj.serialnum, obj.product))
+        result = [['Index', 'Device', 'TTY', 'Manufacturer', 'Serial Number', 'Product', 'VID/PID']]
+        result.extend([x.index, x.devnum, x.tty, x.manufacturer, x.serialnum, x.product, x.vidpid] for x in FindFTDI())
+        for j in range(len(result[0])):
+            size = max(len(x[j]) for x in result)
+            for x in result:
+                x[j] = x[j].center(size)
+        result.insert(1, '')
+        result.insert(0, '')
+        result.append('')
+        for x in result:
+            print('   '.join(x).rstrip())
     elif len(argv) == 3 and argv[1] in 'bind unbind'.split():
         binder(*argv[1:])
     else:
