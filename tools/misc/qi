@@ -13,11 +13,12 @@ anybody can run qi with any command line, and anybody else can kill the results.
 
 Options:
 
-    qi kill <PID>  -- kills the process
-    qi list        -- shows a list of currently running qi processes
-    qi list <PID>  -- dumps the stdout and stderr for the process
-    qi clean       -- Removes all stdout and stderr of processes with no pidfiles
-    qi <any command line>  -- daemonizes itself, and runs the command
+    qi kill <PID>  -- Kills the process.  Can kill multiple processes with space separated PIDs.
+    qi kill <text> -- Kills the process started with <text> in its command line.  Must match single process.
+    qi list        -- Show a list of currently running qi processes.
+    qi list <PID>  -- Dump the stdout and stderr for the process.
+    qi clean       -- Removes all stdout and stderr of processes with no pidfiles.
+    qi <any command line>  -- Daemonizes itself, and runs the command.
 
 Files used:
     /tmp/qi/<PID>.pid    -- pid file with command line.  Removing this kills the process.  Removed when done.
@@ -52,11 +53,22 @@ def display(msg):
         raise SystemExit
     raise SystemExit(msg)
 
+def kill_by_name(pids):
+    if len(pids) != 1:
+        return showhelp()
+    text, = pids
+    matches = [x.split()[0] for x in do_list_all(False) if text in x]
+    if not matches:
+        return SystemExit('\nERROR: No matcing program %r\n' % text)
+    if len(matches) != 1:
+        return SystemExit('\nERROR: Multiple matching programs\n    %s\n' % '\n    '.join(matches))
+    do_kill([None, None] + matches)
+
 def do_kill(argv):
     #TODO:  Wait to see if process killed???
     pids = argv[2:]
     if not pids or not all(x.isdigit() for x in pids):
-        return showhelp()
+        return kill_by_name(pids)
     print()
     for pid in pids:
         mypath, _, _ = get_paths(pid)
@@ -69,16 +81,19 @@ def do_kill(argv):
     print()
     raise SystemExit(0)
 
-def do_list_all():
+def do_list_all(do_display=True):
     #TODO: Make this fancier later, sort options?  File dates?  Test for still running?
-    files = (os.path.join(mydir, fname) for fname in os.listdir(mydir))
+    try:
+        files = (os.path.join(mydir, fname) for fname in os.listdir(mydir))
+    except FileNotFoundError:
+        files = ()
     files = (x for x in files if x.endswith('.pid'))
     results = []
     for fname in files:
         pid = fname.rsplit('/', 1)[-1].split('.')[0]
         with open(fname, 'rt') as f:
             results.append('%s -- %s' % (pid, f.read().rstrip()))
-    return display(results)
+    return display(results) if do_display else results
 
 def do_list_one(argv):
     if len(argv) != 3 or not argv[2].isdigit():
