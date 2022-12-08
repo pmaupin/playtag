@@ -37,18 +37,20 @@ def FindFTDI():
 
 
     for device in list(subdevices):
-        vendor, product = device.readit.idVendor, device.readit.idProduct
-        if vendor == '0403' and product in ('6010', '6011'):
+        vid, pid = device.readit.idVendor, device.readit.idProduct
+        if vid == '0403' and pid in ('6010', '6011', '6014'):
             manufacturer, product, serial = device.readit.manufacturer, device.readit.product, device.readit.serial
             for index, subdevice in enumerate(sorted(subdevices[device])):
                 assert subdevice.readit.interface == product
-                index = 'ABCD'[index]
+                index = 'ABCD'[index] if pid != '6014' else ''
                 obj = OneDevice()
                 obj.devnum = subdevice.name
                 obj.tty = ' '.join(x.name for x in subdevice.glob('tty*'))
                 obj.manufacturer = manufacturer
-                obj.product = product + ' ' + index
-                obj.serialnum = serial + '_' + index if serial else ''
+                obj.product = product + (' ' + index if index else index)
+                obj.serialnum = serial + ('_' + index if index else index) if serial else ''
+                obj.vid = vid
+                obj.pid = pid
                 result.append(obj)
 
     for index, obj in enumerate(result):
