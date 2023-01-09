@@ -192,7 +192,10 @@ def run_service(argv, original_stdout, original_stdout_path, original_stderr_pat
     info = proc.returncode is not None and 'completed'
     if not info:
         proc.send_signal(signal.SIGINT)
-        os.killpg(0, signal.SIGINT)
+        try:
+            os.killpg(0, signal.SIGINT)
+        except KeyboardInterrupt:
+            pass
         delay = time.time() + 5
         while proc.poll() is None and time.time() < delay:
             time.sleep(0.2)
